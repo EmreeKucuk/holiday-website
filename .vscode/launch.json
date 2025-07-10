@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-HolidayapiApplication<holidayapi>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.emre.holidayapi.HolidayapiApplication",
+            "projectName": "holidayapi",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
