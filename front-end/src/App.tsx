@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 interface Holiday {
@@ -17,6 +17,13 @@ interface Country {
   name: string;
 }
 
+interface HolidayTemplate {
+  id: number;
+  code: string;
+  defaultName: string;
+  type: string;
+}
+
 function App() {
   const [activeSection, setActiveSection] = useState('range');
   const [loading, setLoading] = useState(false);
@@ -24,6 +31,8 @@ function App() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [todayResult, setTodayResult] = useState<{ isHoliday: boolean; holidays: Holiday[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [holidayTemplates, setHolidayTemplates] = useState<HolidayTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Form states
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -185,6 +194,24 @@ function App() {
       setLoading(false);
     }
   };
+
+  const fetchHolidayTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const response = await fetch('http://localhost:8080/api/holiday-templates');
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setHolidayTemplates(data);
+    } catch (err) {
+      setHolidayTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHolidayTemplates();
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {

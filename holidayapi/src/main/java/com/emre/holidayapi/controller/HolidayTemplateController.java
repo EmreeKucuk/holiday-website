@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:5173") // or your frontend port
 @RestController
 @RequestMapping("/api/holiday-templates")
 public class HolidayTemplateController {
