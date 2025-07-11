@@ -133,21 +133,47 @@ public class HolidayController {
     }
 
     @GetMapping("/today")
-    public List<HolidayDefinition> getTodayHolidays() {
-        return holidayService.getHolidaysByDate(LocalDate.now());
+    public List<HolidayDto> getTodayHolidays(@RequestParam String country) {
+        LocalDate today = LocalDate.now();
+        List<HolidayDefinition> defs = holidayService.getHolidaysByCountryAndDateRange(country, today, today);
+        return defs.stream().map(def -> {
+            HolidayDto dto = new HolidayDto();
+            dto.name = def.getTemplate().getDefaultName();
+            dto.date = def.getHolidayDate().toString();
+            dto.countryCode = country;
+            dto.type = def.getTemplate().getType();
+            return dto;
+        }).toList();
     }
 
     @GetMapping("/range")
-    public List<HolidayDefinition> getHolidaysInRange(@RequestParam String start, @RequestParam String end) {
+    public List<HolidayDto> getHolidaysInRange(
+        @RequestParam String start,
+        @RequestParam String end,
+        @RequestParam(required = false) String country
+    ) {
         LocalDate startDate = LocalDate.parse(start);
         LocalDate endDate = LocalDate.parse(end);
-        return holidayService.getHolidaysInRange(startDate, endDate);
+        List<HolidayDefinition> defs;
+        if (country != null && !country.isEmpty()) {
+            defs = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+        } else {
+            defs = holidayService.getHolidaysInRange(startDate, endDate);
+        }
+        return defs.stream().map(def -> {
+            HolidayDto dto = new HolidayDto();
+            dto.name = def.getTemplate().getDefaultName();
+            dto.date = def.getHolidayDate().toString();
+            dto.countryCode = country != null ? country : def.getTemplate().getCode();
+            dto.type = def.getTemplate().getType();
+            return dto;
+        }).toList();
     }
 
-    @PostMapping("/api/chat")
-    public Map<String, String> chat(@RequestBody Map<String, String> body) {
-        String userMessage = body.get("message");
-        String aiReply = springAiService.ask(userMessage); // Use Spring AI here
-        return Map.of("reply", aiReply);
-    }
+    // @PostMapping("/api/chat")
+    // public Map<String, String> chat(@RequestBody Map<String, String> body) {
+    //     String userMessage = body.get("message");
+    //     String aiReply = springAiService.ask(userMessage); // Use Spring AI here
+    //     return Map.of("reply", aiReply);
+    // }
 }

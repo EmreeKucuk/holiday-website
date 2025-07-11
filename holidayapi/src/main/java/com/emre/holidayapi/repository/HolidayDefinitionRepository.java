@@ -24,4 +24,7 @@ public interface HolidayDefinitionRepository extends JpaRepository<HolidayDefini
     List<HolidayDefinition> findByHolidayDate(LocalDate date);
 
     List<HolidayDefinition> findByHolidayDateBetween(LocalDate start, LocalDate end);
+
+    @Query("SELECT h FROM HolidayDefinition h JOIN h.template t JOIN CountryHoliday ch ON ch.template = t WHERE ch.country.countryCode = :countryCode AND h.holidayDate BETWEEN :start AND :end")
+    List<HolidayDefinition> findByCountryCodeAndDateRange(String countryCode, LocalDate start, LocalDate end);
 }

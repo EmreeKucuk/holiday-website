@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
+import withReactContent from "sweetalert2-react-content";
+
+const MySwal = withReactContent(Swal);
 
 interface Holiday {
   name: string;
@@ -44,20 +47,18 @@ function App() {
   const sections = [
     { id: 'range', label: 'Date Range', icon: Calendar },
     { id: 'today', label: 'Today\'s Holidays', icon: Clock },
-    { id: 'country', label: 'By Country', icon: Globe },
+    // { id: 'country', label: 'By Country', icon: Globe },
     { id: 'search', label: 'Search Countries', icon: Search },
     { id: 'chat', label: 'AI Chat', icon: MapPin },
   ];
 
   const handleDateRangeSearch = async () => {
     if (!dateRange.start || !dateRange.end) return;
-
     setLoading(true);
     setError(null);
-
     try {
       const response = await fetch(
-        `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}`
+        `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}`
       );
       if (!response.ok) throw new Error('Failed to fetch holidays');
       const data = await response.json();
@@ -72,7 +73,6 @@ function App() {
   const handleTodayCheck = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const response = await fetch(
         `http://localhost:8080/api/holidays/today?country=${selectedCountry}`
@@ -157,34 +157,74 @@ function App() {
     setLoading(true);
     try {
       const response = await fetch(`http://localhost:8080/api/holidays/country/${countryCode}`);
+      if (!response.ok) throw new Error("Failed to fetch holidays");
       const holidays = await response.json();
 
-      // Optionally, fetch audiences/types for filters
-      // const audiences = await fetch(...);
-      // const types = await fetch(...);
+      // Optionally fetch audiences and types for filters
+      const [audiencesRes, typesRes] = await Promise.all([
+        fetch("http://localhost:8080/api/holidays/audiences"),
+        fetch("http://localhost:8080/api/holidays/types"),
+      ]);
+      const audiences = await audiencesRes.json();
+      const types = await typesRes.json();
 
-      Swal.fire({
-        title: `Holidays in ${countryCode}`,
-        html: `
+      let filtered = holidays;
+
+      const renderPopup = (filterType = "", filterAudience = "", search = "") => {
+        filtered = holidays.filter(
+          (h: any) =>
+            (!filterType || h.type === filterType) &&
+            (!filterAudience || (h.audience && h.audience === filterAudience)) &&
+            (!search || h.name.toLowerCase().includes(search.toLowerCase()))
+        );
+        return (
           <div>
-            <label>Type:</label>
-            <select id="type-filter">
-              <option value="">All</option>
-              <option value="religious">Religious</option>
-              <option value="official">Official</option>
-              <!-- Add more types dynamically -->
+            <input
+              type="text"
+              placeholder="Search holidays"
+              onChange={e => {
+                renderPopup(filterType, filterAudience, e.target.value);
+              }}
+              className="swal2-input"
+            />
+            <select
+              onChange={e => renderPopup(e.target.value, filterAudience, search)}
+              className="swal2-select"
+            >
+              <option value="">All Types</option>
+              {types.map((t: string) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
+            <select
+              onChange={e => renderPopup(filterType, e.target.value, search)}
+              className="swal2-select"
+            >
+              <option value="">All Audiences</option>
+              {audiences.map((a: any) => (
+                <option key={a.code} value={a.code}>{a.audienceName}</option>
+              ))}
+            </select>
+            <div style={{ maxHeight: 300, overflowY: "auto", marginTop: 10 }}>
+              {filtered.map((h: any) => (
+                <div key={h.name + h.date}>
+                  <b>{h.name}</b> - {h.date} ({h.type})
+                </div>
+              ))}
+            </div>
           </div>
-          <div id="holiday-list">
-            ${holidays.map((h: any) => `<div>${h.name} - ${h.date} (${h.type})</div>`).join('')}
-          </div>
-        `,
-        showCloseButton: true,
+        );
+      };
+
+      MySwal.fire({
+        title: `Holidays in ${countryCode}`,
+        html: renderPopup(),
         width: 600,
-        didOpen: () => {
-          // Add filter logic here if needed
-        }
+        showCloseButton: true,
+        showConfirmButton: false,
       });
+    } catch (err) {
+      Swal.fire("Error", "Failed to fetch holidays for this country", "error");
     } finally {
       setLoading(false);
     }
