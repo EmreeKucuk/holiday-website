@@ -1,5 +1,6 @@
 package com.emre.holidayapi.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -10,6 +11,7 @@ public class Country {
     private String countryCode;
 
     @Column(name = "country_name", nullable = false, length = 100)
+    @JsonProperty("name")
     private String countryName;
 
     public String getCountryCode() {

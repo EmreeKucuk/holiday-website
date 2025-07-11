@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 interface Holiday {
   name: string;
@@ -38,59 +39,29 @@ function App() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [specificDate, setSpecificDate] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
 
   const sections = [
     { id: 'range', label: 'Date Range', icon: Calendar },
     { id: 'today', label: 'Today\'s Holidays', icon: Clock },
     { id: 'country', label: 'By Country', icon: Globe },
     { id: 'search', label: 'Search Countries', icon: Search },
+    { id: 'chat', label: 'AI Chat', icon: MapPin },
   ];
 
   const handleDateRangeSearch = async () => {
     if (!dateRange.start || !dateRange.end) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Simulated API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock data
-      const mockHolidays: Holiday[] = [
-        {
-          name: "New Year's Day",
-          date: "2024-01-01",
-          countryCode: "US",
-          fixed: true,
-          global: true,
-          counties: null,
-          launchYear: null,
-          type: "Public"
-        },
-        {
-          name: "Independence Day",
-          date: "2024-07-04",
-          countryCode: "US",
-          fixed: true,
-          global: true,
-          counties: null,
-          launchYear: 1776,
-          type: "Public"
-        },
-        {
-          name: "Christmas Day",
-          date: "2024-12-25",
-          countryCode: "US",
-          fixed: true,
-          global: true,
-          counties: null,
-          launchYear: null,
-          type: "Public"
-        }
-      ];
-      
-      setHolidays(mockHolidays);
+      const response = await fetch(
+        `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch holidays');
+      const data = await response.json();
+      setHolidays(data);
     } catch (err) {
       setError('Failed to fetch holidays for the specified date range');
     } finally {
@@ -101,26 +72,16 @@ function App() {
   const handleTodayCheck = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const today = new Date().toISOString().split('T')[0];
-      const isNewYear = today.includes('01-01');
-      
+      const response = await fetch(
+        `http://localhost:8080/api/holidays/today?country=${selectedCountry}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch today\'s holidays');
+      const data = await response.json();
       setTodayResult({
-        isHoliday: isNewYear,
-        holidays: isNewYear ? [{
-          name: "New Year's Day",
-          date: today,
-          countryCode: selectedCountry,
-          fixed: true,
-          global: true,
-          counties: null,
-          launchYear: null,
-          type: "Public"
-        }] : []
+        isHoliday: data.length > 0,
+        holidays: data
       });
     } catch (err) {
       setError('Failed to check today\'s holidays');
@@ -134,33 +95,10 @@ function App() {
     setError(null);
     
     try {
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockCountryHolidays: Holiday[] = [
-        {
-          name: "Memorial Day",
-          date: "2024-05-27",
-          countryCode: selectedCountry,
-          fixed: false,
-          global: true,
-          counties: null,
-          launchYear: 1971,
-          type: "Public"
-        },
-        {
-          name: "Labor Day",
-          date: "2024-09-02",
-          countryCode: selectedCountry,
-          fixed: false,
-          global: true,
-          counties: null,
-          launchYear: 1894,
-          type: "Public"
-        }
-      ];
-      
-      setHolidays(mockCountryHolidays);
+      const response = await fetch(`http://localhost:8080/api/holidays/country/${selectedCountry}`);
+      if (!response.ok) throw new Error('Failed to fetch holidays');
+      const data = await response.json();
+      setHolidays(data);
     } catch (err) {
       setError('Failed to fetch holidays for the selected country');
     } finally {
@@ -171,23 +109,12 @@ function App() {
   const handleCountrySearch = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const mockCountries: Country[] = [
-        { countryCode: 'US', name: 'United States' },
-        { countryCode: 'GB', name: 'United Kingdom' },
-        { countryCode: 'CA', name: 'Canada' },
-        { countryCode: 'AU', name: 'Australia' },
-        { countryCode: 'DE', name: 'Germany' },
-        { countryCode: 'FR', name: 'France' },
-        { countryCode: 'JP', name: 'Japan' },
-        { countryCode: 'IN', name: 'India' },
-      ];
-      
-      setCountries(mockCountries);
+      const response = await fetch('http://localhost:8080/api/countries');
+      if (!response.ok) throw new Error('Failed to fetch countries');
+      const data = await response.json();
+      setCountries(data);
     } catch (err) {
       setError('Failed to fetch countries');
     } finally {
@@ -213,6 +140,10 @@ function App() {
     fetchHolidayTemplates();
   }, []);
 
+  useEffect(() => {
+    handleCountrySearch();
+  }, []);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -220,6 +151,53 @@ function App() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleCountryClick = async (countryCode: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8080/api/holidays/country/${countryCode}`);
+      const holidays = await response.json();
+
+      // Optionally, fetch audiences/types for filters
+      // const audiences = await fetch(...);
+      // const types = await fetch(...);
+
+      Swal.fire({
+        title: `Holidays in ${countryCode}`,
+        html: `
+          <div>
+            <label>Type:</label>
+            <select id="type-filter">
+              <option value="">All</option>
+              <option value="religious">Religious</option>
+              <option value="official">Official</option>
+              <!-- Add more types dynamically -->
+            </select>
+          </div>
+          <div id="holiday-list">
+            ${holidays.map((h: any) => `<div>${h.name} - ${h.date} (${h.type})</div>`).join('')}
+          </div>
+        `,
+        showCloseButton: true,
+        width: 600,
+        didOpen: () => {
+          // Add filter logic here if needed
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChat = async (message: string) => {
+    const response = await fetch('http://localhost:8080/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const data = await response.json();
+    setChatHistory([...chatHistory, { user: message, ai: data.reply }]);
   };
 
   return (
@@ -343,12 +321,11 @@ function App() {
                         onChange={(e) => setSelectedCountry(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="US">United States</option>
-                        <option value="GB">United Kingdom</option>
-                        <option value="CA">Canada</option>
-                        <option value="AU">Australia</option>
-                        <option value="DE">Germany</option>
-                        <option value="FR">France</option>
+                        {countries.map((country) => (
+                          <option key={country.countryCode} value={country.countryCode}>
+                            {country.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -381,12 +358,11 @@ function App() {
                         onChange={(e) => setSelectedCountry(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="US">United States</option>
-                        <option value="GB">United Kingdom</option>
-                        <option value="CA">Canada</option>
-                        <option value="AU">Australia</option>
-                        <option value="DE">Germany</option>
-                        <option value="FR">France</option>
+                        {countries.map((country) => (
+                          <option key={country.countryCode} value={country.countryCode}>
+                            {country.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -419,12 +395,11 @@ function App() {
                         onChange={(e) => setSelectedCountry(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="US">United States</option>
-                        <option value="GB">United Kingdom</option>
-                        <option value="CA">Canada</option>
-                        <option value="AU">Australia</option>
-                        <option value="DE">Germany</option>
-                        <option value="FR">France</option>
+                        {countries.map((country) => (
+                          <option key={country.countryCode} value={country.countryCode}>
+                            {country.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -455,6 +430,42 @@ function App() {
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     <span>{loading ? 'Loading...' : 'Load Countries'}</span>
                   </button>
+                </div>
+              )}
+
+              {activeSection === 'chat' && (
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <MapPin className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">AI Chat</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Your Message
+                      </label>
+                      <textarea
+                        value={chatHistory[chatHistory.length - 1]?.user}
+                        onChange={(e) => setChatHistory(prev => {
+                          const newHistory = [...prev];
+                          newHistory[newHistory.length - 1].user = e.target.value;
+                          return newHistory;
+                        })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <button
+                      onClick={() => handleChat(chatHistory[chatHistory.length - 1]?.user)}
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                      <span>{loading ? 'Sending...' : 'Send Message'}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -524,7 +535,7 @@ function App() {
                       <div
                         key={country.countryCode}
                         className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
-                        onClick={() => setSelectedCountry(country.countryCode)}
+                        onClick={() => handleCountryClick(country.countryCode)}
                       >
                         <div className="flex items-center justify-between">
                           <div>
