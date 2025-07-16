@@ -6,7 +6,11 @@ import com.emre.holidayapi.service.AudienceService;
 import com.emre.holidayapi.dto.HolidayDto;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/holidays")
@@ -182,6 +186,22 @@ public class HolidayController {
             dto.type = def.getTemplate().getType();
             return dto;
         }).toList();
+    }
+
+    @GetMapping("/debug")
+    public Map<String, Object> debugParams(
+        @RequestParam(required = false) String start,
+        @RequestParam(required = false) String end,
+        @RequestParam(required = false) String country,
+        @RequestParam(required = false) String audience
+    ) {
+        Map<String, Object> debug = new HashMap<>();
+        debug.put("start", start);
+        debug.put("end", end);
+        debug.put("country", country);
+        debug.put("audience", audience);
+        debug.put("timestamp", LocalDate.now().toString());
+        return debug;
     }
 
     // @PostMapping("/api/chat")

@@ -36,8 +36,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   // Form states
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [selectedCountry, setSelectedCountry] = useState('US');
+  const [dateRange, setDateRange] = useState({ start: '2025-01-01', end: '2025-01-31' });
+  const [selectedCountry, setSelectedCountry] = useState('TR');
   const [selectedAudience, setSelectedAudience] = useState('');
   const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
 
@@ -58,11 +58,15 @@ function App() {
       if (selectedAudience) {
         url += `&audience=${selectedAudience}`;
       }
+      console.log('Date Range Search - URL:', url);
+      console.log('Date Range Search - Start:', dateRange.start, 'End:', dateRange.end, 'Country:', selectedCountry);
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch holidays');
       const data = await response.json();
+      console.log('Date Range Search - Response:', data);
       setHolidays(data);
     } catch (err) {
+      console.error('Date Range Search - Error:', err);
       setError('Failed to fetch holidays for the specified date range');
     } finally {
       setLoading(false);
