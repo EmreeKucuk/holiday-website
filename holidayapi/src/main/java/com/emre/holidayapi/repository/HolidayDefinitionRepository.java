@@ -27,4 +27,9 @@ public interface HolidayDefinitionRepository extends JpaRepository<HolidayDefini
 
     @Query("SELECT h FROM HolidayDefinition h JOIN h.template t JOIN CountryHoliday ch ON ch.template = t WHERE ch.country.countryCode = :countryCode AND h.holidayDate BETWEEN :start AND :end")
     List<HolidayDefinition> findByCountryCodeAndDateRange(String countryCode, LocalDate start, LocalDate end);
+
+    // For now, this will return the same as above since audience relationship might not be properly established
+    // TODO: Implement proper audience filtering when the database schema is updated
+    @Query("SELECT h FROM HolidayDefinition h JOIN h.template t JOIN CountryHoliday ch ON ch.template = t WHERE ch.country.countryCode = :countryCode AND h.holidayDate BETWEEN :start AND :end")
+    List<HolidayDefinition> findByCountryCodeDateRangeAndAudience(String countryCode, LocalDate start, LocalDate end, String audienceCode);
 }

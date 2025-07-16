@@ -7,7 +7,6 @@ import com.emre.holidayapi.dto.HolidayDto;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.time.LocalDate;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/holidays")
@@ -133,9 +132,18 @@ public class HolidayController {
     }
 
     @GetMapping("/today")
-    public List<HolidayDto> getTodayHolidays(@RequestParam String country) {
+    public List<HolidayDto> getTodayHolidays(
+        @RequestParam String country,
+        @RequestParam(required = false) String audience
+    ) {
         LocalDate today = LocalDate.now();
-        List<HolidayDefinition> defs = holidayService.getHolidaysByCountryAndDateRange(country, today, today);
+        List<HolidayDefinition> defs;
+        // For now, audience filtering is temporarily disabled until proper schema is implemented
+        // if (audience != null && !audience.isEmpty()) {
+        //     defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, today, today, audience);
+        // } else {
+            defs = holidayService.getHolidaysByCountryAndDateRange(country, today, today);
+        // }
         return defs.stream().map(def -> {
             HolidayDto dto = new HolidayDto();
             dto.name = def.getTemplate().getDefaultName();
@@ -150,13 +158,19 @@ public class HolidayController {
     public List<HolidayDto> getHolidaysInRange(
         @RequestParam String start,
         @RequestParam String end,
-        @RequestParam(required = false) String country
+        @RequestParam(required = false) String country,
+        @RequestParam(required = false) String audience
     ) {
         LocalDate startDate = LocalDate.parse(start);
         LocalDate endDate = LocalDate.parse(end);
         List<HolidayDefinition> defs;
         if (country != null && !country.isEmpty()) {
-            defs = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+            // For now, audience filtering is temporarily disabled until proper schema is implemented
+            // if (audience != null && !audience.isEmpty()) {
+            //     defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, startDate, endDate, audience);
+            // } else {
+                defs = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+            // }
         } else {
             defs = holidayService.getHolidaysInRange(startDate, endDate);
         }

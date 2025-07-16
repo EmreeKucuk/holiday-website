@@ -76,6 +76,10 @@ public class HolidayService {
         return repository.findByCountryCodeAndDateRange(countryCode, start, end);
     }
 
+    public List<HolidayDefinition> getHolidaysByCountryDateRangeAndAudience(String countryCode, LocalDate start, LocalDate end, String audienceCode) {
+        return repository.findByCountryCodeDateRangeAndAudience(countryCode, start, end, audienceCode);
+    }
+
     // --- Placeholder implementations for conditions/specs ---
 
     public Object addHolidayCondition(Long id, Object condition) {

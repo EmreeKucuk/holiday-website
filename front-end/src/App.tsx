@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -21,11 +21,9 @@ interface Country {
   name: string;
 }
 
-interface HolidayTemplate {
-  id: number;
+interface Audience {
   code: string;
-  defaultName: string;
-  type: string;
+  audienceName: string;
 }
 
 function App() {
@@ -33,15 +31,14 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
+  const [audiences, setAudiences] = useState<Audience[]>([]);
   const [todayResult, setTodayResult] = useState<{ isHoliday: boolean; holidays: Holiday[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [holidayTemplates, setHolidayTemplates] = useState<HolidayTemplate[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Form states
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCountry, setSelectedCountry] = useState('US');
-  const [specificDate, setSpecificDate] = useState('');
+  const [selectedAudience, setSelectedAudience] = useState('');
   const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
 
   const sections = [
@@ -57,9 +54,11 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}`
-      );
+      let url = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}`;
+      if (selectedAudience) {
+        url += `&audience=${selectedAudience}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch holidays');
       const data = await response.json();
       setHolidays(data);
@@ -74,9 +73,11 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/holidays/today?country=${selectedCountry}`
-      );
+      let url = `http://localhost:8080/api/holidays/today?country=${selectedCountry}`;
+      if (selectedAudience) {
+        url += `&audience=${selectedAudience}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch today\'s holidays');
       const data = await response.json();
       setTodayResult({
@@ -122,22 +123,19 @@ function App() {
     }
   };
 
-  const fetchHolidayTemplates = async () => {
-    setLoadingTemplates(true);
+  const fetchAudiences = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/holiday-templates');
-      if (!response.ok) throw new Error('Failed to fetch');
+      const response = await fetch('http://localhost:8080/api/holidays/audiences');
+      if (!response.ok) throw new Error('Failed to fetch audiences');
       const data = await response.json();
-      setHolidayTemplates(data);
+      setAudiences(data);
     } catch (err) {
-      setHolidayTemplates([]);
-    } finally {
-      setLoadingTemplates(false);
+      console.error('Failed to fetch audiences:', err);
     }
   };
 
   useEffect(() => {
-    fetchHolidayTemplates();
+    fetchAudiences();
   }, []);
 
   useEffect(() => {
@@ -160,69 +158,74 @@ function App() {
       if (!response.ok) throw new Error("Failed to fetch holidays");
       const holidays = await response.json();
 
-      // Optionally fetch audiences and types for filters
-      const [audiencesRes, typesRes] = await Promise.all([
-        fetch("http://localhost:8080/api/holidays/audiences"),
-        fetch("http://localhost:8080/api/holidays/types"),
-      ]);
-      const audiences = await audiencesRes.json();
+      // Fetch types if needed
+      const typesRes = await fetch("http://localhost:8080/api/holidays/types");
       const types = await typesRes.json();
 
       let filtered = holidays;
 
-      const renderPopup = (filterType = "", filterAudience = "", search = "") => {
+      const showPopup = (filterType = "", search = "") => {
         filtered = holidays.filter(
           (h: any) =>
             (!filterType || h.type === filterType) &&
-            (!filterAudience || (h.audience && h.audience === filterAudience)) &&
             (!search || h.name.toLowerCase().includes(search.toLowerCase()))
         );
-        return (
-          <div>
-            <input
-              type="text"
-              placeholder="Search holidays"
-              onChange={e => {
-                renderPopup(filterType, filterAudience, e.target.value);
-              }}
-              className="swal2-input"
-            />
-            <select
-              onChange={e => renderPopup(e.target.value, filterAudience, search)}
-              className="swal2-select"
-            >
-              <option value="">All Types</option>
-              {types.map((t: string) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              onChange={e => renderPopup(filterType, e.target.value, search)}
-              className="swal2-select"
-            >
-              <option value="">All Audiences</option>
-              {audiences.map((a: any) => (
-                <option key={a.code} value={a.code}>{a.audienceName}</option>
-              ))}
-            </select>
-            <div style={{ maxHeight: 300, overflowY: "auto", marginTop: 10 }}>
-              {filtered.map((h: any) => (
-                <div key={h.name + h.date}>
-                  <b>{h.name}</b> - {h.date} ({h.type})
-                </div>
-              ))}
+
+        MySwal.fire({
+          title: `Holidays in ${countryCode}`,
+          html: `
+            <div>
+              <input id="search-input" type="text" placeholder="Search holidays" class="swal2-input" />
+              <select id="type-select" class="swal2-select">
+                <option value="">All Types</option>
+                ${types.map((t: string) => `<option value="${t}">${t}</option>`).join('')}
+              </select>
+              <div id="holidays-list" style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
+                ${filtered.length > 0 
+                  ? filtered.map((h: any) => `
+                      <div style="padding: 8px; border-bottom: 1px solid #eee;">
+                        <b>${h.name}</b> - ${h.date} (${h.type})
+                      </div>
+                    `).join('')
+                  : '<p>No holidays found for this country.</p>'
+                }
+              </div>
             </div>
-          </div>
-        );
+          `,
+          width: 600,
+          showCloseButton: true,
+          showConfirmButton: false,
+          didOpen: () => {
+            const searchInput = document.getElementById('search-input') as HTMLInputElement;
+            const typeSelect = document.getElementById('type-select') as HTMLSelectElement;
+            const holidaysList = document.getElementById('holidays-list') as HTMLDivElement;
+
+            const updateList = () => {
+              const searchValue = searchInput.value.toLowerCase();
+              const typeValue = typeSelect.value;
+              
+              const filteredHolidays = holidays.filter(
+                (h: any) =>
+                  (!typeValue || h.type === typeValue) &&
+                  (!searchValue || h.name.toLowerCase().includes(searchValue))
+              );
+
+              holidaysList.innerHTML = filteredHolidays.length > 0 
+                ? filteredHolidays.map((h: any) => `
+                    <div style="padding: 8px; border-bottom: 1px solid #eee;">
+                      <b>${h.name}</b> - ${h.date} (${h.type})
+                    </div>
+                  `).join('')
+                : '<p>No holidays found with current filters.</p>';
+            };
+
+            searchInput.addEventListener('input', updateList);
+            typeSelect.addEventListener('change', updateList);
+          }
+        });
       };
 
-      MySwal.fire({
-        title: `Holidays in ${countryCode}`,
-        html: renderPopup(),
-        width: 600,
-        showCloseButton: true,
-        showConfirmButton: false,
-      });
+      showPopup();
     } catch (err) {
       Swal.fire("Error", "Failed to fetch holidays for this country", "error");
     } finally {
@@ -364,6 +367,24 @@ function App() {
                         {countries.map((country) => (
                           <option key={country.countryCode} value={country.countryCode}>
                             {country.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Audience (Optional)
+                      </label>
+                      <select
+                        value={selectedAudience}
+                        onChange={(e) => setSelectedAudience(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">All Audiences</option>
+                        {audiences.map((audience) => (
+                          <option key={audience.code} value={audience.code}>
+                            {audience.audienceName}
                           </option>
                         ))}
                       </select>
