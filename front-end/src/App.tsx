@@ -14,6 +14,7 @@ interface Holiday {
   counties: string[] | null;
   launchYear: number | null;
   type: string;
+  audiences?: string[]; // Add audience information
 }
 
 interface Country {
@@ -39,6 +40,8 @@ function App() {
   const [dateRange, setDateRange] = useState({ start: '2025-01-01', end: '2025-01-31' });
   const [selectedCountry, setSelectedCountry] = useState('TR');
   const [selectedAudience, setSelectedAudience] = useState('');
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'type'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
   const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
 
   const sections = [
@@ -247,6 +250,30 @@ function App() {
     setChatHistory([...chatHistory, { user: message, ai: data.reply }]);
   };
 
+  const sortHolidays = (holidays: Holiday[]) => {
+    const sorted = [...holidays].sort((a, b) => {
+      let compareResult = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          compareResult = a.name.localeCompare(b.name);
+          break;
+        case 'date':
+          compareResult = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'type':
+          compareResult = a.type.localeCompare(b.type);
+          break;
+        default:
+          compareResult = new Date(a.date).getTime() - new Date(b.date).getTime();
+      }
+      
+      return sortOrder === 'desc' ? -compareResult : compareResult;
+    });
+    
+    return sorted;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
@@ -392,6 +419,37 @@ function App() {
                           </option>
                         ))}
                       </select>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Sort By
+                        </label>
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="date">Date</option>
+                          <option value="name">Name</option>
+                          <option value="type">Type</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Order
+                        </label>
+                        <select
+                          value={sortOrder}
+                          onChange={(e) => setSortOrder(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="asc">Ascending</option>
+                          <option value="desc">Descending</option>
+                        </select>
+                      </div>
                     </div>
                     
                     <button
@@ -590,13 +648,40 @@ function App() {
 
               {activeSection === 'search' && countries.length > 0 && (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Available Countries</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <MapPin className="w-5 h-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">Available Countries</h3>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="name">Sort by Name</option>
+                        <option value="code">Sort by Code</option>
+                      </select>
+                      
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="asc">A-Z</option>
+                        <option value="desc">Z-A</option>
+                      </select>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {countries.map((country) => (
+                    {countries
+                      .sort((a, b) => {
+                        const compareValue = sortBy === 'name' ? a.name.localeCompare(b.name) : a.countryCode.localeCompare(b.countryCode);
+                        return sortOrder === 'desc' ? -compareValue : compareValue;
+                      })
+                      .map((country) => (
                       <div
                         key={country.countryCode}
                         className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
@@ -617,21 +702,44 @@ function App() {
 
               {(activeSection === 'range' || activeSection === 'country') && holidays.length > 0 && (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {activeSection === 'range' ? 'Holidays in Date Range' : 'Country Holidays'}
-                    </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {activeSection === 'range' ? 'Holidays in Date Range' : 'Country Holidays'}
+                      </h3>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="date">Sort by Date</option>
+                        <option value="name">Sort by Name</option>
+                        <option value="type">Sort by Type</option>
+                      </select>
+                      
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="asc">{sortBy === 'date' ? 'Earliest First' : 'A-Z'}</option>
+                        <option value="desc">{sortBy === 'date' ? 'Latest First' : 'Z-A'}</option>
+                      </select>
+                    </div>
                   </div>
                   
                   <div className="space-y-3">
-                    {holidays.map((holiday, index) => (
+                    {sortHolidays(holidays).map((holiday, index) => (
                       <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 mb-1">{holiday.name}</h4>
                             <p className="text-sm text-gray-600 mb-2">{formatDate(holiday.date)}</p>
-                            <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <div className="flex items-center flex-wrap gap-4 text-xs text-gray-500">
                               <span className="flex items-center space-x-1">
                                 <span>Type:</span>
                                 <span className="font-medium">{holiday.type}</span>
@@ -640,6 +748,12 @@ function App() {
                                 <span>Fixed:</span>
                                 <span className="font-medium">{holiday.fixed ? 'Yes' : 'No'}</span>
                               </span>
+                              {holiday.audiences && holiday.audiences.length > 0 && (
+                                <span className="flex items-center space-x-1">
+                                  <span>Audiences:</span>
+                                  <span className="font-medium">{holiday.audiences.join(', ')}</span>
+                                </span>
+                              )}
                               {holiday.launchYear && (
                                 <span className="flex items-center space-x-1">
                                   <span>Since:</span>

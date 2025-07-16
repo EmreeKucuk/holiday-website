@@ -1,5 +1,7 @@
 package com.emre.holidayapi.dto;
 
+import java.util.List;
+
 public class HolidayDto {
     public String name;
     public String date;
@@ -9,4 +11,5 @@ public class HolidayDto {
     public String[] counties;
     public Integer launchYear;
     public String type;
+    public List<String> audiences;
 }

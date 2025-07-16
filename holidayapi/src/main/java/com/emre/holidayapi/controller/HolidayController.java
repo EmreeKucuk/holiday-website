@@ -8,9 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/holidays")
@@ -38,6 +38,7 @@ public class HolidayController {
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = countryCode;
             dto.type = def.getTemplate().getType();
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
             // Set other fields as needed (fixed, global, counties, launchYear)
             return dto;
         }).toList();
@@ -154,6 +155,7 @@ public class HolidayController {
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = country;
             dto.type = def.getTemplate().getType();
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
             return dto;
         }).toList();
     }
@@ -184,6 +186,7 @@ public class HolidayController {
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = country != null ? country : def.getTemplate().getCode();
             dto.type = def.getTemplate().getType();
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
             return dto;
         }).toList();
     }
@@ -210,4 +213,47 @@ public class HolidayController {
     //     String aiReply = springAiService.ask(userMessage); // Use Spring AI here
     //     return Map.of("reply", aiReply);
     // }
+
+    private List<String> getAudiencesForHoliday(String holidayCode) {
+        // This is a temporary implementation. In a real system, this would query 
+        // a proper many-to-many relationship table between holidays and audiences.
+        // For now, we'll provide some sample audience mappings based on holiday types.
+        
+        List<String> audiences = new ArrayList<>();
+        
+        // Example mappings - replace with actual database queries when schema is ready
+        switch (holidayCode) {
+            case "new_year":
+                audiences.add("General Public");
+                audiences.add("Government");
+                break;
+            case "eid_al_fitr":
+            case "eid_al_adha":
+                audiences.add("General Public");
+                audiences.add("Religious");
+                break;
+            case "national_sovereignty_day":
+            case "victory_day":
+            case "republic_day":
+                audiences.add("General Public");
+                audiences.add("Government");
+                audiences.add("Educational");
+                break;
+            case "labour_day":
+                audiences.add("General Public");
+                audiences.add("Workers");
+                break;
+            case "ataturk_memorial_day":
+            case "democracy_day":
+                audiences.add("General Public");
+                audiences.add("Government");
+                audiences.add("Educational");
+                break;
+            default:
+                audiences.add("General Public");
+                break;
+        }
+        
+        return audiences;
+    }
 }
