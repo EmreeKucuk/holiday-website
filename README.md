@@ -99,12 +99,17 @@ holiday-website/
    ```
 
 2. **Configure Database**
-   - Update `holidayapi/src/main/resources/application.properties` with your database credentials
+   - Copy the example configuration file:
+   ```bash
+   cp holidayapi/src/main/resources/application-example.properties holidayapi/src/main/resources/application.properties
+   ```
+   - Update `holidayapi/src/main/resources/application.properties` with your database credentials:
    ```properties
-   spring.datasource.url=jdbc:oracle:thin:@localhost:1521:xe
+   spring.datasource.url=jdbc:oracle:thin:@localhost:1521/XEPDB1
    spring.datasource.username=your_username
    spring.datasource.password=your_password
    ```
+   - **Note**: The `application.properties` file is gitignored for security. Never commit database credentials!
 
 3. **Build and Run Backend**
    ```bash

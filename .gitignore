@@ -1,0 +1,20 @@
+# Backend - Application Properties with Sensitive Data
+holidayapi/src/main/resources/application.properties
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
