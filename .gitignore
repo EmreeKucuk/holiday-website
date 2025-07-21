@@ -18,3 +18,4 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+holidayapi/src/main/resources/application-env.properties
