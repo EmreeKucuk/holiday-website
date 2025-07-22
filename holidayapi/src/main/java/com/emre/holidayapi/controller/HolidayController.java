@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Set;
 import java.time.LocalDate;
 
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://localhost:5175"})
@@ -375,5 +376,71 @@ public class HolidayController {
         }
         
         return audiences;
+    }
+
+    @GetMapping("/working-days")
+    public Map<String, Object> calculateWorkingDays(
+        @RequestParam String start,
+        @RequestParam String end,
+        @RequestParam(required = false) String country,
+        @RequestParam(required = false, defaultValue = "en") String language,
+        @RequestParam(required = false, defaultValue = "true") boolean includeEndDate
+    ) {
+        LocalDate startDate = LocalDate.parse(start);
+        LocalDate endDate = LocalDate.parse(end);
+        
+        // Get holidays in the date range
+        List<HolidayDefinition> holidays;
+        if (country != null && !country.isEmpty()) {
+            holidays = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+        } else {
+            holidays = holidayService.getHolidaysInRange(startDate, endDate);
+        }
+        
+        // Calculate days - adjust end date based on includeEndDate parameter
+        LocalDate calculationEndDate = includeEndDate ? endDate : endDate.minusDays(1);
+        long totalDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, calculationEndDate) + 1;
+        
+        // Filter holidays to match the calculation range
+        List<HolidayDefinition> filteredHolidays = holidays.stream()
+            .filter(holiday -> !holiday.getHolidayDate().isAfter(calculationEndDate))
+            .collect(java.util.stream.Collectors.toList());
+            
+        int holidayDays = filteredHolidays.size();
+        
+        // Calculate working days (excluding weekends and holidays)
+        long workingDays = 0;
+        LocalDate currentDate = startDate;
+        Set<LocalDate> holidayDates = filteredHolidays.stream()
+            .map(HolidayDefinition::getHolidayDate)
+            .collect(java.util.stream.Collectors.toSet());
+            
+        while (!currentDate.isAfter(calculationEndDate)) {
+            // Check if it's not weekend (Saturday=6, Sunday=7) and not a holiday
+            if (currentDate.getDayOfWeek().getValue() < 6 && !holidayDates.contains(currentDate)) {
+                workingDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        // Convert filtered holidays to DTOs
+        List<HolidayDto> holidayDtos = filteredHolidays.stream().map(def -> {
+            HolidayDto dto = new HolidayDto();
+            dto.name = getHolidayName(def.getTemplate(), language);
+            dto.date = def.getHolidayDate().toString();
+            dto.countryCode = country != null ? country : "GLOBAL";
+            dto.type = def.getTemplate().getType();
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getId());
+            return dto;
+        }).collect(java.util.stream.Collectors.toList());
+        
+        // Create result map
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("totalDays", totalDays);
+        result.put("workingDays", workingDays);
+        result.put("holidayDays", holidayDays);
+        result.put("holidays", holidayDtos);
+        
+        return result;
     }
 }

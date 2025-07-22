@@ -27,7 +27,15 @@ export interface Translation {
   todaysHolidays: string;
   checkTodayButton: string;
 
-  // Results sections
+    // Working Days Calculator
+    workingDaysCalculator: string;
+    totalDays: string;
+    workingDays: string;
+    holidayDays: string;
+    calculateButton: string;
+    workingDaysResults: string;
+    includeEndDate: string;
+    excludeEndDate: string;  // Results sections
   dateRangeResults: string;
   countryHolidays: string;
   
@@ -148,6 +156,16 @@ export const translations: Record<string, Translation> = {
     todaysHolidays: "Today's Holidays",
     checkTodayButton: "Check Today's Holidays",
 
+    // Working Days Calculator
+    workingDaysCalculator: "Working Days Calculator",
+    totalDays: "Total Days",
+    workingDays: "Working Days",
+    holidayDays: "Holiday Days",
+    calculateButton: "Calculate",
+    workingDaysResults: "Working Days Analysis",
+    includeEndDate: "Include End Date",
+    excludeEndDate: "Exclude End Date",
+
     // Results sections
     dateRangeResults: "Holidays in Date Range",
     countryHolidays: "Country Holidays",
@@ -266,6 +284,16 @@ export const translations: Record<string, Translation> = {
     // Today's Holidays
     todaysHolidays: "Bugünün Tatilleri",
     checkTodayButton: "Bugünün Tatillerini Kontrol Et",
+
+    // Working Days Calculator
+    workingDaysCalculator: "Çalışma Günü Hesaplayıcısı",
+    totalDays: "Toplam Gün",
+    workingDays: "Çalışma Günleri",
+    holidayDays: "Tatil Günleri",
+    calculateButton: "Hesapla",
+    workingDaysResults: "Çalışma Günü Analizi",
+    includeEndDate: "Son Günü Dahil Et",
+    excludeEndDate: "Son Günü Dahil Etme",
 
     // Results sections
     dateRangeResults: "Tarih Aralığındaki Tatiller",
