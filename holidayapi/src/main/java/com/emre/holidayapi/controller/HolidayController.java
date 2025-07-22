@@ -3,25 +3,33 @@ package com.emre.holidayapi.controller;
 import com.emre.holidayapi.model.*;
 import com.emre.holidayapi.service.HolidayService;
 import com.emre.holidayapi.service.AudienceService;
+import com.emre.holidayapi.repository.TranslationRepository;
+import com.emre.holidayapi.repository.HolidayTemplateRepository;
 import com.emre.holidayapi.dto.HolidayDto;
+import com.emre.holidayapi.dto.AudienceDto;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.time.LocalDate;
-import java.util.ArrayList;
 
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://localhost:5175"})
 @RestController
 @RequestMapping("/api/holidays")
 public class HolidayController {
 
     private final HolidayService holidayService;
     private final AudienceService audienceService;
+    private final TranslationRepository translationRepository;
+    private final HolidayTemplateRepository holidayTemplateRepository;
 
-    public HolidayController(HolidayService holidayService, AudienceService audienceService) {
+    public HolidayController(HolidayService holidayService, AudienceService audienceService, 
+                           TranslationRepository translationRepository, HolidayTemplateRepository holidayTemplateRepository) {
         this.holidayService = holidayService;
         this.audienceService = audienceService;
+        this.translationRepository = translationRepository;
+        this.holidayTemplateRepository = holidayTemplateRepository;
     }
 
     @GetMapping
@@ -30,15 +38,18 @@ public class HolidayController {
     }
 
     @GetMapping("/country/{countryCode}")
-    public List<HolidayDto> getHolidaysByCountry(@PathVariable String countryCode) {
+    public List<HolidayDto> getHolidaysByCountry(
+        @PathVariable String countryCode,
+        @RequestParam(required = false, defaultValue = "en") String language
+    ) {
         List<HolidayDefinition> defs = holidayService.getHolidaysByCountry(countryCode);
         return defs.stream().map(def -> {
             HolidayDto dto = new HolidayDto();
-            dto.name = def.getTemplate().getDefaultName();
+            dto.name = getHolidayName(def.getTemplate(), language);
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = countryCode;
             dto.type = def.getTemplate().getType();
-            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getId());
             // Set other fields as needed (fixed, global, counties, launchYear)
             return dto;
         }).toList();
@@ -52,6 +63,30 @@ public class HolidayController {
     @GetMapping("/types")
     public List<String> getHolidayTypes() {
         return holidayService.getHolidayTypes();
+    }
+
+    @GetMapping("/types/translated")
+    public Map<String, String> getTranslatedHolidayTypes(@RequestParam(required = false, defaultValue = "en") String language) {
+        Map<String, String> types = new HashMap<>();
+        
+        if ("tr".equals(language)) {
+            types.put("official", "Resmi Tatil");
+            types.put("religious", "Dini Tatil");
+            types.put("cultural", "Kültürel Tatil");
+            types.put("observance", "Anma Günü");
+            types.put("national", "Ulusal Tatil");
+            types.put("public", "Kamu Tatili");
+        } else {
+            // Default to English
+            types.put("official", "Official Holiday");
+            types.put("religious", "Religious Holiday");
+            types.put("cultural", "Cultural Holiday");
+            types.put("observance", "Observance");
+            types.put("national", "National Holiday");
+            types.put("public", "Public Holiday");
+        }
+        
+        return types;
     }
 
     @GetMapping("/workdays")
@@ -121,6 +156,72 @@ public class HolidayController {
         return audienceService.getAllAudiences();
     }
 
+    @GetMapping("/audiences/translated")
+    public List<AudienceDto> getTranslatedAudiences(@RequestParam(required = false, defaultValue = "en") String language) {
+        List<Audience> audiences = audienceService.getAllAudiences();
+        return audiences.stream().map(audience -> {
+            String translatedName;
+            
+            // Simple translation mapping - in a full app, this would be stored in the database
+            if ("tr".equals(language)) {
+                switch (audience.getCode()) {
+                    case "general":
+                        translatedName = "Genel Halk";
+                        break;
+                    case "government":
+                        translatedName = "Devlet";
+                        break;
+                    case "religious":
+                        translatedName = "Dini";
+                        break;
+                    case "educational":
+                        translatedName = "Eğitim";
+                        break;
+                    case "workers":
+                        translatedName = "İşçiler";
+                        break;
+                    case "all":
+                        translatedName = "Tüm Çalışanlar";
+                        break;
+                    case "blue_collar":
+                        translatedName = "Mavi Yakalı Çalışanlar";
+                        break;
+                    default:
+                        translatedName = audience.getAudienceName();
+                }
+            } else {
+                // Default to English
+                switch (audience.getCode()) {
+                    case "general":
+                        translatedName = "General Public";
+                        break;
+                    case "government":
+                        translatedName = "Government";
+                        break;
+                    case "religious":
+                        translatedName = "Religious";
+                        break;
+                    case "educational":
+                        translatedName = "Educational";
+                        break;
+                    case "workers":
+                        translatedName = "Workers";
+                        break;
+                    case "all":
+                        translatedName = "All Employees";
+                        break;
+                    case "blue_collar":
+                        translatedName = "Blue Collar Workers";
+                        break;
+                    default:
+                        translatedName = audience.getAudienceName();
+                }
+            }
+            
+            return new AudienceDto(audience.getCode(), translatedName);
+        }).toList();
+    }
+
     @PostMapping("/audiences")
     public Audience addAudience(@RequestBody Audience audience) {
         return audienceService.addAudience(audience);
@@ -139,23 +240,24 @@ public class HolidayController {
     @GetMapping("/today")
     public List<HolidayDto> getTodayHolidays(
         @RequestParam String country,
-        @RequestParam(required = false) String audience
+        @RequestParam(required = false) String audience,
+        @RequestParam(required = false, defaultValue = "en") String language
     ) {
         LocalDate today = LocalDate.now();
         List<HolidayDefinition> defs;
-        // For now, audience filtering is temporarily disabled until proper schema is implemented
-        // if (audience != null && !audience.isEmpty()) {
-        //     defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, today, today, audience);
-        // } else {
+        // Enable audience filtering for today's holidays
+        if (audience != null && !audience.isEmpty()) {
+            defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, today, today, audience);
+        } else {
             defs = holidayService.getHolidaysByCountryAndDateRange(country, today, today);
-        // }
+        }
         return defs.stream().map(def -> {
             HolidayDto dto = new HolidayDto();
-            dto.name = def.getTemplate().getDefaultName();
+            dto.name = getHolidayName(def.getTemplate(), language);
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = country;
             dto.type = def.getTemplate().getType();
-            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getId());
             return dto;
         }).toList();
     }
@@ -165,28 +267,28 @@ public class HolidayController {
         @RequestParam String start,
         @RequestParam String end,
         @RequestParam(required = false) String country,
-        @RequestParam(required = false) String audience
+        @RequestParam(required = false) String audience,
+        @RequestParam(required = false, defaultValue = "en") String language
     ) {
         LocalDate startDate = LocalDate.parse(start);
         LocalDate endDate = LocalDate.parse(end);
         List<HolidayDefinition> defs;
         if (country != null && !country.isEmpty()) {
-            // For now, audience filtering is temporarily disabled until proper schema is implemented
-            // if (audience != null && !audience.isEmpty()) {
-            //     defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, startDate, endDate, audience);
-            // } else {
+            if (audience != null && !audience.isEmpty()) {
+                defs = holidayService.getHolidaysByCountryDateRangeAndAudience(country, startDate, endDate, audience);
+            } else {
                 defs = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
-            // }
+            }
         } else {
             defs = holidayService.getHolidaysInRange(startDate, endDate);
         }
         return defs.stream().map(def -> {
             HolidayDto dto = new HolidayDto();
-            dto.name = def.getTemplate().getDefaultName();
+            dto.name = getHolidayName(def.getTemplate(), language);
             dto.date = def.getHolidayDate().toString();
             dto.countryCode = country != null ? country : def.getTemplate().getCode();
             dto.type = def.getTemplate().getType();
-            dto.audiences = getAudiencesForHoliday(def.getTemplate().getCode());
+            dto.audiences = getAudiencesForHoliday(def.getTemplate().getId());
             return dto;
         }).toList();
     }
@@ -213,6 +315,24 @@ public class HolidayController {
     //     String aiReply = springAiService.ask(userMessage); // Use Spring AI here
     //     return Map.of("reply", aiReply);
     // }
+
+    private String getHolidayName(HolidayTemplate template, String language) {
+        // Try to get translation from database first
+        return translationRepository.findByTemplateIdAndLanguageCode(template.getId(), language)
+            .map(Translation::getTranslatedName)
+            .orElse(template.getDefaultName()); // Fallback to default name if no translation found
+    }
+
+    private List<String> getAudiencesForHoliday(Long templateId) {
+        // This method uses template ID instead of holiday code
+        // For now, we'll fall back to the holiday code-based method
+        // TODO: Implement proper many-to-many relationship between HolidayTemplate and Audience
+        
+        // We need to get the template first to get its code
+        return holidayTemplateRepository.findById(templateId)
+            .map(template -> getAudiencesForHoliday(template.getCode()))
+            .orElse(List.of("General Public")); // Default fallback
+    }
 
     private List<String> getAudiencesForHoliday(String holidayCode) {
         // This is a temporary implementation. In a real system, this would query 

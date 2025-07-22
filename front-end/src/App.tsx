@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import { useTranslation } from './TranslationContext';
 
 const MySwal = withReactContent(Swal);
 
@@ -28,6 +29,7 @@ interface Audience {
 }
 
 function App() {
+  const { language, t, setLanguage, translateAudience, translateHolidayType, translateCountry } = useTranslation();
   const [activeSection, setActiveSection] = useState('range');
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -36,6 +38,12 @@ function App() {
   const [todayResult, setTodayResult] = useState<{ isHoliday: boolean; holidays: Holiday[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Available languages
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'tr', name: 'Türkçe' }
+  ];
+
   // Form states
   const [dateRange, setDateRange] = useState({ start: '2025-01-01', end: '2025-01-31' });
   const [selectedCountry, setSelectedCountry] = useState('TR');
@@ -43,11 +51,16 @@ function App() {
   const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'type'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
   const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
+  const [workingDaysResult, setWorkingDaysResult] = useState<{
+    totalDays: number;
+    workingDays: number;
+    holidayDays: number;
+    holidays: Holiday[];
+  } | null>(null);
 
   const sections = [
-    { id: 'range', label: 'Date Range', icon: Calendar },
-    { id: 'today', label: 'Today\'s Holidays', icon: Clock },
-    // { id: 'country', label: 'By Country', icon: Globe },
+    { id: 'range', label: t.searchByDateRange, icon: Calendar },
+    { id: 'today', label: t.todaysHolidays, icon: Clock },
     { id: 'search', label: 'Search Countries', icon: Search },
     { id: 'chat', label: 'AI Chat', icon: MapPin },
   ];
@@ -57,7 +70,7 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      let url = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}`;
+      let url = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}`;
       if (selectedAudience) {
         url += `&audience=${selectedAudience}`;
       }
@@ -70,7 +83,7 @@ function App() {
       setHolidays(data);
     } catch (err) {
       console.error('Date Range Search - Error:', err);
-      setError('Failed to fetch holidays for the specified date range');
+      setError(t.apiError);
     } finally {
       setLoading(false);
     }
@@ -80,7 +93,7 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      let url = `http://localhost:8080/api/holidays/today?country=${selectedCountry}`;
+      let url = `http://localhost:8080/api/holidays/today?country=${selectedCountry}&language=${language}`;
       if (selectedAudience) {
         url += `&audience=${selectedAudience}`;
       }
@@ -103,12 +116,12 @@ function App() {
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:8080/api/holidays/country/${selectedCountry}`);
+      const response = await fetch(`http://localhost:8080/api/holidays/country/${selectedCountry}?language=${language}`);
       if (!response.ok) throw new Error('Failed to fetch holidays');
       const data = await response.json();
       setHolidays(data);
     } catch (err) {
-      setError('Failed to fetch holidays for the selected country');
+      setError(t.apiError);
     } finally {
       setLoading(false);
     }
@@ -132,10 +145,13 @@ function App() {
 
   const fetchAudiences = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/holidays/audiences');
+      const response = await fetch(`http://localhost:8080/api/holidays/audiences/translated?language=${language}`);
       if (!response.ok) throw new Error('Failed to fetch audiences');
       const data = await response.json();
-      setAudiences(data);
+      setAudiences(data.map((aud: {code: string, name: string}) => ({ 
+        code: aud.code, 
+        audienceName: aud.name 
+      })));
     } catch (err) {
       console.error('Failed to fetch audiences:', err);
     }
@@ -143,14 +159,15 @@ function App() {
 
   useEffect(() => {
     fetchAudiences();
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     handleCountrySearch();
   }, []);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const locale = language === 'tr' ? 'tr-TR' : 'en-US';
+    return new Date(dateString).toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -194,7 +211,7 @@ function App() {
                         <b>${h.name}</b> - ${h.date} (${h.type})
                       </div>
                     `).join('')
-                  : '<p>No holidays found for this country.</p>'
+                  : `<p>${t.noHolidaysFound}</p>`
                 }
               </div>
             </div>
@@ -223,7 +240,7 @@ function App() {
                       <b>${h.name}</b> - ${h.date} (${h.type})
                     </div>
                   `).join('')
-                : '<p>No holidays found with current filters.</p>';
+                : `<p>${t.noHolidaysFound}</p>`;
             };
 
             searchInput.addEventListener('input', updateList);
@@ -286,9 +303,9 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Holiday API
+                  {t.title}
                 </h1>
-                <p className="text-sm text-gray-600">Explore holidays worldwide</p>
+                <p className="text-sm text-gray-600">{t.subtitle}</p>
               </div>
             </div>
             
@@ -311,6 +328,22 @@ function App() {
                 );
               })}
             </nav>
+            
+            {/* Language Selector */}
+            <div className="flex items-center space-x-3">
+              <label className="text-sm font-medium text-gray-700">{t.languageSelector}:</label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+              >
+                {languages.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </header>
@@ -319,10 +352,10 @@ function App() {
         {/* Hero Section */}
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Discover Holidays Around the World
+            {t.mainHeadline}
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Access comprehensive holiday data for any country, check specific dates, and explore global celebrations
+            {t.mainDescription}
           </p>
         </div>
 
@@ -358,13 +391,13 @@ function App() {
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
                     <Calendar className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Date Range Search</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t.searchByDateRange}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Start Date
+                        {t.startDate}
                       </label>
                       <input
                         type="date"
@@ -376,7 +409,7 @@ function App() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        End Date
+                        {t.endDate}
                       </label>
                       <input
                         type="date"
@@ -405,17 +438,17 @@ function App() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Audience (Optional)
+                        {t.selectAudience}
                       </label>
                       <select
                         value={selectedAudience}
                         onChange={(e) => setSelectedAudience(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="">All Audiences</option>
+                        <option value="">{t.allAudiences}</option>
                         {audiences.map((audience) => (
                           <option key={audience.code} value={audience.code}>
-                            {audience.audienceName}
+                            {translateAudience(audience.audienceName)}
                           </option>
                         ))}
                       </select>
@@ -424,16 +457,16 @@ function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Sort By
+                          {t.sortBy}
                         </label>
                         <select
                           value={sortBy}
                           onChange={(e) => setSortBy(e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="date">Date</option>
-                          <option value="name">Name</option>
-                          <option value="type">Type</option>
+                          <option value="date">{t.date}</option>
+                          <option value="name">{t.name}</option>
+                          <option value="type">{t.type}</option>
                         </select>
                       </div>
                       
@@ -446,8 +479,8 @@ function App() {
                           onChange={(e) => setSortOrder(e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                          <option value="asc">Ascending</option>
-                          <option value="desc">Descending</option>
+                          <option value="asc">{t.ascending}</option>
+                          <option value="desc">{t.descending}</option>
                         </select>
                       </div>
                     </div>
@@ -458,7 +491,7 @@ function App() {
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
                     >
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                      <span>{loading ? 'Searching...' : 'Search Holidays'}</span>
+                      <span>{loading ? t.loading : t.searchButton}</span>
                     </button>
                   </div>
                 </div>
@@ -495,7 +528,7 @@ function App() {
                       className="w-full bg-gradient-to-r from-green-500 to-teal-600 text-white px-6 py-3 rounded-lg font-medium hover:from-green-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
                     >
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
-                      <span>{loading ? 'Checking...' : 'Check Today'}</span>
+                      <span>{loading ? t.loading : t.checkTodayButton}</span>
                     </button>
                   </div>
                 </div>
@@ -505,13 +538,13 @@ function App() {
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
                     <Globe className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Browse by Country</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t.filters}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Country
+                        {t.selectCountry}
                       </label>
                       <select
                         value={selectedCountry}
@@ -624,7 +657,7 @@ function App() {
                       )}
                       <div>
                         <p className="font-medium text-gray-900">
-                          {todayResult.isHoliday ? 'Yes, today is a holiday!' : 'No holidays today'}
+                          {todayResult.isHoliday ? t.todayIsHoliday : t.noHolidaysToday}
                         </p>
                         <p className="text-sm text-gray-600">
                           {formatDate(new Date().toISOString().split('T')[0])}
@@ -660,8 +693,8 @@ function App() {
                         onChange={(e) => setSortBy(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       >
-                        <option value="name">Sort by Name</option>
-                        <option value="code">Sort by Code</option>
+                        <option value="name">{t.sortByName}</option>
+                        <option value="code">{t.sortByCode}</option>
                       </select>
                       
                       <select
@@ -706,7 +739,7 @@ function App() {
                     <div className="flex items-center space-x-3">
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {activeSection === 'range' ? 'Holidays in Date Range' : 'Country Holidays'}
+                        {activeSection === 'range' ? t.dateRangeResults : t.countryHolidays}
                       </h3>
                     </div>
                     
@@ -716,9 +749,9 @@ function App() {
                         onChange={(e) => setSortBy(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       >
-                        <option value="date">Sort by Date</option>
-                        <option value="name">Sort by Name</option>
-                        <option value="type">Sort by Type</option>
+                        <option value="date">{t.sortByDate}</option>
+                        <option value="name">{t.sortByName}</option>
+                        <option value="type">{t.sortByType}</option>
                       </select>
                       
                       <select
@@ -745,18 +778,18 @@ function App() {
                                 <span className="font-medium">{holiday.type}</span>
                               </span>
                               <span className="flex items-center space-x-1">
-                                <span>Fixed:</span>
-                                <span className="font-medium">{holiday.fixed ? 'Yes' : 'No'}</span>
+                                <span>{t.type_label}:</span>
+                                <span className="font-medium">{translateHolidayType(holiday.type)}</span>
                               </span>
                               {holiday.audiences && holiday.audiences.length > 0 && (
                                 <span className="flex items-center space-x-1">
-                                  <span>Audiences:</span>
-                                  <span className="font-medium">{holiday.audiences.join(', ')}</span>
+                                  <span>{t.audiences_label}:</span>
+                                  <span className="font-medium">{holiday.audiences.map(aud => translateAudience(aud)).join(', ')}</span>
                                 </span>
                               )}
                               {holiday.launchYear && (
                                 <span className="flex items-center space-x-1">
-                                  <span>Since:</span>
+                                  <span>{t.since}</span>
                                   <span className="font-medium">{holiday.launchYear}</span>
                                 </span>
                               )}
@@ -764,13 +797,26 @@ function App() {
                           </div>
                           <div className="ml-4">
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {holiday.countryCode}
+                              {translateCountry(holiday.countryCode)}
                             </span>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Show "no holidays found" when search was performed but returned empty results */}
+              {!loading && !error && (activeSection === 'range' || activeSection === 'country') && holidays.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Calendar className="w-8 h-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t.noHolidaysFound}</h3>
+                  <p className="text-gray-600">
+                    Try different search criteria or date range.
+                  </p>
                 </div>
               )}
 
