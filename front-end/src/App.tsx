@@ -765,8 +765,15 @@ function App() {
                       <p className="font-medium mb-2">{t.aiChat.tryAsking}</p>
                       <ul className="space-y-1 text-sm">
                         <li>• "{t.aiChat.suggestions.todayHoliday}"</li>
+                        <li>• "{t.aiChat.suggestions.vacationOptimization}"</li>
                         <li>• "{t.aiChat.suggestions.holidayRange}"</li>
+                        <li>• "{t.aiChat.suggestions.religiousHolidays}"</li>
+                        <li>• "{t.aiChat.suggestions.holidayDuration}"</li>
+                        <li>• "{t.aiChat.suggestions.specificHoliday}"</li>
+                        <li>• "{t.aiChat.suggestions.workingDays}"</li>
+                        <li>• "{t.aiChat.suggestions.holidayStatistics}"</li>
                         <li>• "{t.aiChat.suggestions.yearlyHolidays}"</li>
+                        <li>• "{t.aiChat.suggestions.monthlyHolidays}"</li>
                         <li>• "{t.aiChat.suggestions.audienceHolidays}"</li>
                       </ul>
                     </div>

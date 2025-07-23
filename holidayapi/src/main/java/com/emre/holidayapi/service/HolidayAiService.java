@@ -13,6 +13,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -70,6 +71,11 @@ public class HolidayAiService {
             // Check for holiday type queries (religious, official, etc.)
             if (containsHolidayTypeKeywords(lowerMessage)) {
                 return handleHolidayTypeQuery(userMessage, countryCode, language);
+            }
+            
+            // Check for vacation optimization queries
+            if (containsVacationOptimizationKeywords(lowerMessage)) {
+                return handleVacationOptimizationQuery(userMessage, countryCode, language);
             }
             
             // Check if asking about annual holidays
@@ -395,6 +401,15 @@ public class HolidayAiService {
                message.contains("official") || message.contains("cultural"));
     }
 
+    private boolean containsVacationOptimizationKeywords(String message) {
+        return (message.contains("vacation") || message.contains("holiday") || message.contains("leave")) &&
+               (message.contains("longest") || message.contains("optimize") || message.contains("maximize") ||
+                message.contains("best time") || message.contains("optimal") || message.contains("connect") ||
+                message.contains("bridge") || message.contains("extend") || message.contains("tatil") ||
+                message.contains("izin") || message.contains("en uzun") || message.contains("bağla") ||
+                message.contains("weekend") || message.contains("hafta sonu"));
+    }
+
     private String handleHolidayNameQuery(String userMessage, String countryCode, String language) {
         // Extract potential holiday name from the message
         String potentialHolidayName = extractHolidayNameFromMessage(userMessage, language);
@@ -593,6 +608,391 @@ public class HolidayAiService {
         }
         
         return response.toString();
+    }
+
+    private String handleVacationOptimizationQuery(String userMessage, String countryCode, String language) {
+        try {
+            // Extract year and period preferences from the message
+            int requestedYear = extractYearFromMessage(userMessage);
+            if (requestedYear == -1) {
+                requestedYear = LocalDate.now().getYear();
+            }
+            
+            // Check if user has specified vacation days in their message
+            int maxVacationDays = extractMaxVacationDays(userMessage);
+            
+            // If no vacation days specified, ask the user first
+            if (maxVacationDays == -1) {
+                return getLocalizedMessage(language,
+                    String.format("To help you find the best vacation opportunities in %s for %d, please let me know:\n\n" +
+                        "How many vacation days can you take? (For example: \"I can take 5 vacation days\" or \"maximum 10 days\")\n\n" +
+                        "Once you tell me your limit, I'll calculate the best periods to maximize your time off by combining your vacation days with holidays and weekends.",
+                        getCountryName(countryCode), requestedYear),
+                    String.format("%d yılında %s'deki en iyi tatil fırsatlarını bulmanıza yardım etmek için lütfen bana şunu söyleyin:\n\n" +
+                        "Kaç izin günü kullanabilirsiniz? (Örneğin: \"5 izin günü kullanabilirim\" veya \"maksimum 10 gün\")\n\n" +
+                        "Limitinizi söyledikten sonra, izin günlerinizi tatiller ve hafta sonları ile birleştirerek en uzun tatil süresini elde etmenin en iyi yollarını hesaplayacağım.",
+                        requestedYear, getCountryName(countryCode)));
+            }
+            
+            LocalDate startOfYear = LocalDate.of(requestedYear, 1, 1);
+            LocalDate endOfYear = LocalDate.of(requestedYear, 12, 31);
+            
+            List<HolidayDefinition> yearHolidays = holidayService.getHolidaysByDateRange(startOfYear, endOfYear, countryCode);
+            
+            // Find optimal vacation periods
+            List<VacationOptimization> optimizations = findOptimalVacationPeriods(yearHolidays, requestedYear, maxVacationDays);
+            
+            StringBuilder response = new StringBuilder();
+            response.append(getLocalizedMessage(language,
+                String.format("Based on your %d available vacation days, here are the best vacation optimization opportunities in %s for %d:\n\n", 
+                    maxVacationDays, getCountryName(countryCode), requestedYear),
+                String.format("%d mevcut izin gününüze göre, %d yılında %s'de en iyi tatil optimizasyonu fırsatları:\n\n", 
+                    maxVacationDays, requestedYear, getCountryName(countryCode))));
+            
+            if (optimizations.isEmpty()) {
+                response.append(getLocalizedMessage(language,
+                    String.format("No significant vacation optimization opportunities found for %d vacation days this year. " +
+                        "Try increasing your vacation day limit or consider different periods.", maxVacationDays),
+                    String.format("Bu yıl %d izin günü için önemli tatil optimizasyonu fırsatı bulunamadı. " +
+                        "İzin günü limitinizi artırmayı veya farklı dönemleri değerlendirmeyi deneyin.", maxVacationDays)));
+            } else {
+                for (int i = 0; i < Math.min(3, optimizations.size()); i++) {
+                    VacationOptimization opt = optimizations.get(i);
+                    response.append(getLocalizedMessage(language,
+                        String.format("🏖️ Option %d: Take %d vacation days from %s to %s\n" +
+                            "   • Total time off: %d days (%s to %s)\n" +
+                            "   • Efficiency: %.1f days off per vacation day\n" +
+                            "   • Includes: %s\n\n",
+                            i + 1,
+                            opt.vacationDaysNeeded,
+                            opt.vacationStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.vacationEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.totalDaysOff,
+                            opt.totalStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.totalEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.efficiency,
+                            opt.description),
+                        String.format("🏖️ Seçenek %d: %s - %s arası %d izin günü al\n" +
+                            "   • Toplam tatil süresi: %d gün (%s - %s)\n" +
+                            "   • Verimlilik: izin günü başına %.1f tatil günü\n" +
+                            "   • İçerir: %s\n\n",
+                            i + 1,
+                            opt.vacationStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.vacationEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.vacationDaysNeeded,
+                            opt.totalDaysOff,
+                            opt.totalStartDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.totalEndDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            opt.efficiency,
+                            opt.description)));
+                }
+            }
+            
+            return response.toString();
+            
+        } catch (Exception e) {
+            // Log the error for debugging (in a real app you'd use a logger)
+            System.err.println("Error in vacation optimization: " + e.getMessage());
+            e.printStackTrace();
+            
+            return getLocalizedMessage(language,
+                "I encountered an error while calculating vacation optimization. Please try rephrasing your question with a specific number of vacation days, like 'Find best vacation with 5 days'.",
+                "Tatil optimizasyonu hesaplarken bir hata oluştu. Lütfen '5 günle en iyi tatil bul' gibi belirli bir izin günü sayısı ile sorunuzu yeniden ifade edin.");
+        }
+    }
+
+    // Helper class for vacation optimization
+    private static class VacationOptimization {
+        LocalDate vacationStartDate;
+        LocalDate vacationEndDate;
+        LocalDate totalStartDate;
+        LocalDate totalEndDate;
+        int vacationDaysNeeded;
+        int totalDaysOff;
+        double efficiency;
+        String description;
+        
+        VacationOptimization(LocalDate vacationStart, LocalDate vacationEnd, 
+                           LocalDate totalStart, LocalDate totalEnd,
+                           int vacationDays, int totalDays, String desc) {
+            this.vacationStartDate = vacationStart;
+            this.vacationEndDate = vacationEnd;
+            this.totalStartDate = totalStart;
+            this.totalEndDate = totalEnd;
+            this.vacationDaysNeeded = vacationDays;
+            this.totalDaysOff = totalDays;
+            this.efficiency = vacationDays > 0 ? (double) totalDays / vacationDays : 0.0;
+            this.description = desc;
+        }
+        
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            VacationOptimization that = (VacationOptimization) obj;
+            return vacationStartDate.equals(that.vacationStartDate) &&
+                   vacationEndDate.equals(that.vacationEndDate) &&
+                   totalStartDate.equals(that.totalStartDate) &&
+                   totalEndDate.equals(that.totalEndDate);
+        }
+        
+        @Override
+        public int hashCode() {
+            return vacationStartDate.hashCode() + vacationEndDate.hashCode() + 
+                   totalStartDate.hashCode() + totalEndDate.hashCode();
+        }
+    }
+
+    private List<VacationOptimization> findOptimalVacationPeriods(List<HolidayDefinition> holidays, int year, int maxVacationDays) {
+        List<VacationOptimization> optimizations = new ArrayList<>();
+        
+        // Convert holidays to LocalDate set for quick lookup
+        Set<LocalDate> holidayDates = holidays.stream()
+            .map(HolidayDefinition::getHolidayDate)
+            .collect(Collectors.toSet());
+        
+        // Analyze each holiday and nearby periods
+        for (HolidayDefinition holiday : holidays) {
+            LocalDate holidayDate = holiday.getHolidayDate();
+            
+            // Skip if holiday is on weekend (less optimization potential)
+            if (isWeekend(holidayDate)) {
+                continue;
+            }
+            
+            // Try different vacation day combinations around this holiday
+            for (int vacationDays = 1; vacationDays <= maxVacationDays; vacationDays++) {
+                // Try extending before the holiday
+                VacationOptimization beforeOpt = analyzeVacationBefore(holidayDate, holidayDates, vacationDays, holiday.getTemplate().getDefaultName());
+                if (beforeOpt != null) optimizations.add(beforeOpt);
+                
+                // Try extending after the holiday
+                VacationOptimization afterOpt = analyzeVacationAfter(holidayDate, holidayDates, vacationDays, holiday.getTemplate().getDefaultName());
+                if (afterOpt != null) optimizations.add(afterOpt);
+                
+                // Try bridging holidays (if there are multiple holidays close together)
+                VacationOptimization bridgeOpt = analyzeBridgeVacation(holidayDate, holidayDates, vacationDays, holidays);
+                if (bridgeOpt != null) optimizations.add(bridgeOpt);
+            }
+        }
+        
+        // Sort by efficiency (most days off per vacation day used)
+        optimizations.sort((a, b) -> Double.compare(b.efficiency, a.efficiency));
+        
+        // Remove duplicates and low-efficiency options
+        return optimizations.stream()
+            .filter(opt -> opt.vacationDaysNeeded > 0) // Must require at least 1 vacation day
+            .filter(opt -> opt.efficiency >= 1.5) // At least 1.5 days off per vacation day
+            .filter(opt -> opt.totalDaysOff >= 4) // At least 4 total days off to be worthwhile
+            .distinct()
+            .limit(5) // Limit to top 5 options
+            .collect(Collectors.toList());
+    }
+
+    private VacationOptimization analyzeVacationBefore(LocalDate holidayDate, Set<LocalDate> holidayDates, int vacationDays, String holidayName) {
+        LocalDate vacationStart = holidayDate.minusDays(vacationDays);
+        LocalDate vacationEnd = holidayDate.minusDays(1);
+        
+        // Make sure vacation days are actually working days
+        int actualVacationDays = 0;
+        for (LocalDate date = vacationStart; !date.isAfter(vacationEnd); date = date.plusDays(1)) {
+            if (!isWeekend(date) && !holidayDates.contains(date)) {
+                actualVacationDays++;
+            }
+        }
+        
+        if (actualVacationDays == 0) {
+            return null; // No working days to take as vacation
+        }
+        
+        // Find the actual start of the extended period (include previous weekend)
+        LocalDate totalStart = vacationStart;
+        while (totalStart.getDayOfWeek().getValue() != 1 && !totalStart.equals(vacationStart.minusDays(7))) {
+            totalStart = totalStart.minusDays(1);
+            if (!isWeekend(totalStart) && !holidayDates.contains(totalStart)) {
+                break; // Stop if we hit a working day that's not a holiday
+            }
+        }
+        
+        // Find the end of the holiday period
+        LocalDate totalEnd = holidayDate;
+        while (isWeekend(totalEnd.plusDays(1)) || holidayDates.contains(totalEnd.plusDays(1))) {
+            totalEnd = totalEnd.plusDays(1);
+        }
+        
+        int totalDaysOff = (int) totalStart.until(totalEnd).getDays() + 1;
+        
+        if (totalDaysOff > actualVacationDays + 1) { // Only worthwhile if we get more than just vacation + holiday
+            return new VacationOptimization(vacationStart, vacationEnd, totalStart, totalEnd, 
+                actualVacationDays, totalDaysOff, 
+                String.format("Weekend + %d vacation days + %s", actualVacationDays, holidayName));
+        }
+        
+        return null;
+    }
+
+    private VacationOptimization analyzeVacationAfter(LocalDate holidayDate, Set<LocalDate> holidayDates, int vacationDays, String holidayName) {
+        LocalDate vacationStart = holidayDate.plusDays(1);
+        LocalDate vacationEnd = holidayDate.plusDays(vacationDays);
+        
+        // Make sure vacation days are actually working days
+        int actualVacationDays = 0;
+        for (LocalDate date = vacationStart; !date.isAfter(vacationEnd); date = date.plusDays(1)) {
+            if (!isWeekend(date) && !holidayDates.contains(date)) {
+                actualVacationDays++;
+            }
+        }
+        
+        if (actualVacationDays == 0) {
+            return null; // No working days to take as vacation
+        }
+        
+        // Find the actual start (include previous weekend before holiday)
+        LocalDate totalStart = holidayDate;
+        while (isWeekend(totalStart.minusDays(1)) || holidayDates.contains(totalStart.minusDays(1))) {
+            totalStart = totalStart.minusDays(1);
+        }
+        
+        // Find the end including following weekend
+        LocalDate totalEnd = vacationEnd;
+        while (isWeekend(totalEnd.plusDays(1))) {
+            totalEnd = totalEnd.plusDays(1);
+        }
+        
+        int totalDaysOff = (int) totalStart.until(totalEnd).getDays() + 1;
+        
+        if (totalDaysOff > actualVacationDays + 1) {
+            return new VacationOptimization(vacationStart, vacationEnd, totalStart, totalEnd, 
+                actualVacationDays, totalDaysOff, 
+                String.format("%s + %d vacation days + Weekend", holidayName, actualVacationDays));
+        }
+        
+        return null;
+    }
+
+    private VacationOptimization analyzeBridgeVacation(LocalDate holidayDate, Set<LocalDate> holidayDates, int vacationDays, List<HolidayDefinition> allHolidays) {
+        // Look for another holiday within a reasonable range (2-10 days)
+        for (int gap = 2; gap <= 10; gap++) {
+            LocalDate nextDate = holidayDate.plusDays(gap);
+            if (holidayDates.contains(nextDate) && !nextDate.equals(holidayDate)) {
+                // Found another holiday, see if we can bridge them
+                
+                // Count non-weekend bridge days
+                int workingBridgeDays = 0;
+                for (int i = 1; i < gap; i++) {
+                    LocalDate bridgeDay = holidayDate.plusDays(i);
+                    if (!isWeekend(bridgeDay) && !holidayDates.contains(bridgeDay)) {
+                        workingBridgeDays++;
+                    }
+                }
+                
+                if (workingBridgeDays > 0 && workingBridgeDays <= vacationDays) {
+                    // We can bridge these holidays
+                    LocalDate totalStart = holidayDate;
+                    LocalDate totalEnd = nextDate;
+                    
+                    // Extend to include surrounding weekends
+                    while (isWeekend(totalStart.minusDays(1))) {
+                        totalStart = totalStart.minusDays(1);
+                    }
+                    while (isWeekend(totalEnd.plusDays(1))) {
+                        totalEnd = totalEnd.plusDays(1);
+                    }
+                    
+                    int totalDaysOff = (int) totalStart.until(totalEnd).getDays() + 1;
+                    
+                    String currentHolidayName = allHolidays.stream()
+                        .filter(h -> h.getHolidayDate().equals(holidayDate))
+                        .map(h -> h.getTemplate().getDefaultName())
+                        .findFirst().orElse("Holiday");
+                    
+                    String nextHolidayName = allHolidays.stream()
+                        .filter(h -> h.getHolidayDate().equals(nextDate))
+                        .map(h -> h.getTemplate().getDefaultName())
+                        .findFirst().orElse("Holiday");
+                    
+                    // Only return if the holidays are actually different
+                    if (!currentHolidayName.equals(nextHolidayName)) {
+                        return new VacationOptimization(holidayDate.plusDays(1), nextDate.minusDays(1), 
+                            totalStart, totalEnd, workingBridgeDays, totalDaysOff,
+                            String.format("Bridge between %s and %s", currentHolidayName, nextHolidayName));
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    private boolean isWeekend(LocalDate date) {
+        return date.getDayOfWeek().getValue() >= 6; // Saturday = 6, Sunday = 7
+    }
+
+    private int extractMaxVacationDays(String message) {
+        String lowerMessage = message.toLowerCase();
+        
+        // Look for "maximum X days" pattern first
+        Pattern maxPattern = Pattern.compile("maximum\\s+(\\d+)\\s*(?:vacation\\s+)?(?:day|days|gün)");
+        Matcher matcher = maxPattern.matcher(lowerMessage);
+        
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                // Ignore and continue checking other patterns
+            }
+        }
+        
+        // Look for patterns like "5 days", "3 vacation days", etc.
+        Pattern daysPattern = Pattern.compile("(\\d+)\\s*(?:vacation\\s+)?(?:day|days|gün)");
+        matcher = daysPattern.matcher(lowerMessage);
+        
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                // Ignore and continue checking other patterns
+            }
+        }
+        
+        // Look for "I can take X days" patterns
+        Pattern canTakePattern = Pattern.compile("(?:i can take|kullanabilirim)\\s+(\\d+)");
+        matcher = canTakePattern.matcher(lowerMessage);
+        
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                // Ignore and continue
+            }
+        }
+        
+        // Look for "X izin günü" (Turkish pattern)
+        Pattern turkishPattern = Pattern.compile("(\\d+)\\s*izin\\s*gün");
+        matcher = turkishPattern.matcher(lowerMessage);
+        
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                // Ignore and continue
+            }
+        }
+        
+        // Look for "with X days" pattern
+        Pattern withPattern = Pattern.compile("with\\s+(\\d+)\\s*(?:vacation\\s+)?(?:day|days|gün)");
+        matcher = withPattern.matcher(lowerMessage);
+        
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                // Ignore and continue
+            }
+        }
+        
+        // Return -1 if no vacation days specified (to trigger asking the user)
+        return -1;
     }
 
     // Helper methods for new functionality

@@ -145,6 +145,13 @@ export interface Translation {
       holidayRange: string;
       yearlyHolidays: string;
       audienceHolidays: string;
+      religiousHolidays: string;
+      holidayDuration: string;
+      specificHoliday: string;
+      holidayStatistics: string;
+      workingDays: string;
+      monthlyHolidays: string;
+      vacationOptimization: string;
     };
   };
 
@@ -302,7 +309,14 @@ export const translations: Record<string, Translation> = {
         todayHoliday: "Is there a holiday today?",
         holidayRange: "What holidays are between 01/01/2025 - 31/01/2025?",
         yearlyHolidays: "How many holidays this year?",
-        audienceHolidays: "Show me holidays for students only"
+        audienceHolidays: "Show me holidays for students only",
+        religiousHolidays: "Show me religious holidays",
+        holidayDuration: "How long does Ramadan last?",
+        specificHoliday: "When is Christmas 2025?",
+        holidayStatistics: "Which month has the most holidays?",
+        workingDays: "How many working days between 01/01/2025 and 31/01/2025?",
+        monthlyHolidays: "Show me all holidays in June 2025",
+        vacationOptimization: "Find the best time to take vacation to maximize my time off with 5 vacation days"
       }
     },
 
@@ -459,7 +473,14 @@ export const translations: Record<string, Translation> = {
         todayHoliday: "Bugün tatil var mı?",
         holidayRange: "01/01/2025 - 31/01/2025 arasında hangi tatiller var?",
         yearlyHolidays: "Bu yıl kaç tatil var?",
-        audienceHolidays: "Sadece öğrenciler için tatilleri göster"
+        audienceHolidays: "Sadece öğrenciler için tatilleri göster",
+        religiousHolidays: "Dini tatilleri göster",
+        holidayDuration: "Ramazan Bayramı kaç gün sürer?",
+        specificHoliday: "2025'te Noel ne zaman?",
+        holidayStatistics: "En çok tatil hangi ayda?",
+        workingDays: "01/01/2025 ile 31/01/2025 arasında kaç iş günü var?",
+        monthlyHolidays: "Haziran 2025'teki tüm tatilleri göster",
+        vacationOptimization: "5 izin günüyle tatil süresini maksimize etmek için en iyi zamanı bul"
       }
     },
 
