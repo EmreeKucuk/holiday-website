@@ -3,6 +3,7 @@ import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCir
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import { useTranslation } from './TranslationContext';
+import ThemeToggle from './ThemeToggle';
 
 const MySwal = withReactContent(Swal);
 
@@ -50,7 +51,8 @@ function App() {
   const [selectedAudience, setSelectedAudience] = useState('');
   const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'type'
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
-  const [chatHistory, setChatHistory] = useState<{ user: string; ai: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<{ user: string; ai: string; timestamp: Date }[]>([]);
+  const [currentMessage, setCurrentMessage] = useState('');
   const [includeEndDate, setIncludeEndDate] = useState(true); // For working days calculator
   const [workingDaysResult, setWorkingDaysResult] = useState<{
     totalDays: number;
@@ -64,7 +66,7 @@ function App() {
     { id: 'today', label: t.todaysHolidays, icon: Clock },
     { id: 'workingdays', label: t.workingDaysCalculator || 'Working Days Calculator', icon: Search },
     { id: 'search', label: 'Search Countries', icon: Search },
-    { id: 'chat', label: 'AI Chat', icon: MapPin },
+    { id: 'chat', label: t.aiChat.title, icon: MapPin },
   ];
 
   const handleDateRangeSearch = async () => {
@@ -280,13 +282,38 @@ function App() {
   };
 
   const handleChat = async (message: string) => {
-    const response = await fetch('http://localhost:8080/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
-    });
-    const data = await response.json();
-    setChatHistory([...chatHistory, { user: message, ai: data.reply }]);
+    if (!message.trim()) return;
+    
+    setLoading(true);
+    const userMessage = { user: message, ai: '', timestamp: new Date() };
+    setChatHistory(prev => [...prev, userMessage]);
+    setCurrentMessage('');
+    
+    try {
+      const response = await fetch('http://localhost:8080/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message,
+          country: selectedCountry,
+          language: language 
+        })
+      });
+      const data = await response.json();
+      setChatHistory(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...updated[updated.length - 1], ai: data.reply };
+        return updated;
+      });
+    } catch (err) {
+      setChatHistory(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...updated[updated.length - 1], ai: 'Sorry, I encountered an error. Please try again.' };
+        return updated;
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sortHolidays = (holidays: Holiday[]) => {
@@ -310,24 +337,25 @@ function App() {
       return sortOrder === 'desc' ? -compareResult : compareResult;
     });
     
+
     return sorted;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-a50 via-white to-primary-a40 dark:from-surface-a0 dark:via-surface-a10 dark:to-surface-a20 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-primary-a30/80 dark:bg-surface-a10/80 backdrop-blur-lg border-b border-primary-a20 dark:border-surface-a30 sticky top-0 z-50 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-r from-primary-a0 to-primary-a10 rounded-lg flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-black dark:text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-xl font-bold text-black dark:bg-gradient-to-r dark:from-primary-a30 dark:to-primary-a10 dark:bg-clip-text dark:text-transparent">
                   {t.title}
                 </h1>
-                <p className="text-sm text-gray-600">{t.subtitle}</p>
+                <p className="text-sm text-black/90 dark:text-white">{t.subtitle}</p>
               </div>
             </div>
             
@@ -340,8 +368,8 @@ function App() {
                     onClick={() => setActiveSection(section.id)}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                       activeSection === section.id
-                        ? 'bg-blue-100 text-blue-700 shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-primary-a40 dark:bg-surface-a30 text-black dark:text-white shadow-sm'
+                        : 'text-black dark:text-white hover:bg-primary-a50 dark:hover:bg-surface-a20'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -353,11 +381,11 @@ function App() {
             
             {/* Language Selector */}
             <div className="flex items-center space-x-3">
-              <label className="text-sm font-medium text-gray-700">{t.languageSelector}:</label>
+              <label className="text-sm font-medium text-black dark:text-white">{t.languageSelector}:</label>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                className="px-3 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent text-sm bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
               >
                 {languages.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -373,10 +401,10 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl font-bold text-black dark:text-white mb-4">
             {t.mainHeadline}
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-black dark:text-white max-w-2xl mx-auto">
             {t.mainDescription}
           </p>
         </div>
@@ -392,8 +420,8 @@ function App() {
                   onClick={() => setActiveSection(section.id)}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200 ${
                     activeSection === section.id
-                      ? 'bg-blue-100 text-blue-700 shadow-sm'
-                      : 'text-gray-600 bg-white hover:bg-gray-50'
+                      ? 'bg-primary-a40 dark:bg-surface-a30 text-black dark:text-white shadow-sm'
+                      : 'text-black dark:text-white bg-primary-a50 dark:bg-surface-a20 hover:bg-primary-a40 dark:hover:bg-surface-a30'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -408,47 +436,47 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Input Section */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+            <div className="bg-primary-a50 dark:bg-surface-a10 rounded-xl shadow-lg p-6 sticky top-24 transition-colors duration-300">
               {activeSection === 'range' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{t.searchByDateRange}</h3>
+                    <Calendar className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">{t.searchByDateRange}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.startDate}
                       </label>
                       <input
                         type="date"
                         value={dateRange.start}
                         onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.endDate}
                       </label>
                       <input
                         type="date"
                         value={dateRange.end}
                         onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         Country
                       </label>
                       <select
                         value={selectedCountry}
                         onChange={(e) => setSelectedCountry(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         {countries.map((country) => (
                           <option key={country.countryCode} value={country.countryCode}>
@@ -459,13 +487,13 @@ function App() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.selectAudience}
                       </label>
                       <select
                         value={selectedAudience}
                         onChange={(e) => setSelectedAudience(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         <option value="">{t.allAudiences}</option>
                         {audiences.map((audience) => (
@@ -478,13 +506,13 @@ function App() {
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-black dark:text-white mb-2">
                           {t.sortBy}
                         </label>
                         <select
                           value={sortBy}
                           onChange={(e) => setSortBy(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                         >
                           <option value="date">{t.date}</option>
                           <option value="name">{t.name}</option>
@@ -493,13 +521,13 @@ function App() {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-black dark:text-white mb-2">
                           Order
                         </label>
                         <select
                           value={sortOrder}
                           onChange={(e) => setSortOrder(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                         >
                           <option value="asc">{t.ascending}</option>
                           <option value="desc">{t.descending}</option>
@@ -522,43 +550,43 @@ function App() {
               {activeSection === 'workingdays' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{t.workingDaysCalculator}</h3>
+                    <Calendar className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">{t.workingDaysCalculator}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.startDate}
                       </label>
                       <input
                         type="date"
                         value={dateRange.start}
                         onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.endDate}
                       </label>
                       <input
                         type="date"
                         value={dateRange.end}
                         onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         Country
                       </label>
                       <select
                         value={selectedCountry}
                         onChange={(e) => setSelectedCountry(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         {countries.map((country) => (
                           <option key={country.countryCode} value={country.countryCode}>
@@ -569,7 +597,7 @@ function App() {
                     </div>
                     
                     <div className="flex items-center space-x-4">
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-black dark:text-white">
                         End Date Calculation:
                       </label>
                       <div className="flex items-center space-x-4">
@@ -579,9 +607,9 @@ function App() {
                             name="endDateOption"
                             checked={includeEndDate}
                             onChange={() => setIncludeEndDate(true)}
-                            className="mr-2 text-blue-600"
+                            className="mr-2 text-primary-a0"
                           />
-                          <span className="text-sm text-gray-700">{t.includeEndDate}</span>
+                          <span className="text-sm text-black dark:text-white">{t.includeEndDate}</span>
                         </label>
                         <label className="flex items-center">
                           <input
@@ -589,9 +617,9 @@ function App() {
                             name="endDateOption"
                             checked={!includeEndDate}
                             onChange={() => setIncludeEndDate(false)}
-                            className="mr-2 text-blue-600"
+                            className="mr-2 text-primary-a0"
                           />
-                          <span className="text-sm text-gray-700">{t.excludeEndDate}</span>
+                          <span className="text-sm text-black dark:text-white">{t.excludeEndDate}</span>
                         </label>
                       </div>
                     </div>
@@ -611,19 +639,19 @@ function App() {
               {activeSection === 'today' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Today's Holidays</h3>
+                    <Clock className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">Today's Holidays</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         Country
                       </label>
                       <select
                         value={selectedCountry}
                         onChange={(e) => setSelectedCountry(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         {countries.map((country) => (
                           <option key={country.countryCode} value={country.countryCode}>
@@ -648,19 +676,19 @@ function App() {
               {activeSection === 'country' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Globe className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{t.filters}</h3>
+                    <Globe className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">{t.filters}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
                         {t.selectCountry}
                       </label>
                       <select
                         value={selectedCountry}
                         onChange={(e) => setSelectedCountry(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         {countries.map((country) => (
                           <option key={country.countryCode} value={country.countryCode}>
@@ -685,8 +713,8 @@ function App() {
               {activeSection === 'search' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Search className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Available Countries</h3>
+                    <Search className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">Available Countries</h3>
                   </div>
                   
                   <button
@@ -703,35 +731,37 @@ function App() {
               {activeSection === 'chat' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">AI Chat</h3>
+                    <MapPin className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-black dark:text-white">{t.aiChat.title}</h3>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Your Message
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
+                        {t.aiChat.countryContext}
                       </label>
-                      <textarea
-                        value={chatHistory[chatHistory.length - 1]?.user}
-                        onChange={(e) => setChatHistory(prev => {
-                          const newHistory = [...prev];
-                          newHistory[newHistory.length - 1].user = e.target.value;
-                          return newHistory;
-                        })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={3}
-                      />
+                      <select
+                        value={selectedCountry}
+                        onChange={(e) => setSelectedCountry(e.target.value)}
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
+                      >
+                        {countries.map((country) => (
+                          <option key={country.countryCode} value={country.countryCode}>
+                            {country.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     
-                    <button
-                      onClick={() => handleChat(chatHistory[chatHistory.length - 1]?.user)}
-                      disabled={loading}
-                      className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-indigo-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
-                    >
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-                      <span>{loading ? 'Sending...' : 'Send Message'}</span>
-                    </button>
+                    <div className="text-sm text-black dark:text-white bg-primary-a40 dark:bg-surface-a30 p-3 rounded-lg">
+                      <p className="font-medium mb-2">{t.aiChat.tryAsking}</p>
+                      <ul className="space-y-1 text-sm">
+                        <li>• "{t.aiChat.suggestions.todayHoliday}"</li>
+                        <li>• "{t.aiChat.suggestions.holidayRange}"</li>
+                        <li>• "{t.aiChat.suggestions.yearlyHolidays}"</li>
+                        <li>• "{t.aiChat.suggestions.audienceHolidays}"</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}
@@ -740,37 +770,37 @@ function App() {
 
           {/* Results Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-primary-a50 dark:bg-surface-a10 rounded-xl shadow-lg p-6 transition-colors duration-300">
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                  <span className="text-red-700">{error}</span>
+                <div className="mb-6 p-4 bg-red-400/20 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg flex items-center space-x-3">
+                  <XCircle className="w-5 h-5 text-red-700 dark:text-red-400" />
+                  <span className="text-red-800 dark:text-red-300">{error}</span>
                 </div>
               )}
 
               {activeSection === 'today' && todayResult && (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Clock className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Today's Result</h3>
+                    <Clock className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-white dark:text-white">Today's Result</h3>
                   </div>
                   
                   <div className={`p-4 rounded-lg border-2 ${
                     todayResult.isHoliday 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-gray-50 border-gray-200'
+                      ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700' 
+                      : 'bg-primary-a50 dark:bg-surface-a30 border-primary-a30 dark:border-surface-a40'
                   }`}>
                     <div className="flex items-center space-x-3">
                       {todayResult.isHoliday ? (
-                        <CheckCircle className="w-6 h-6 text-green-600" />
+                        <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
                       ) : (
-                        <XCircle className="w-6 h-6 text-gray-400" />
+                        <XCircle className="w-6 h-6 text-gray-500 dark:text-gray-400" />
                       )}
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-black dark:text-white">
                           {todayResult.isHoliday ? t.todayIsHoliday : t.noHolidaysToday}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-black dark:text-white">
                           {formatDate(new Date().toISOString().split('T')[0])}
                         </p>
                       </div>
@@ -779,9 +809,9 @@ function App() {
                     {todayResult.holidays.length > 0 && (
                       <div className="mt-4 space-y-2">
                         {todayResult.holidays.map((holiday, index) => (
-                          <div key={index} className="bg-white p-3 rounded-lg">
-                            <h4 className="font-medium text-gray-900">{holiday.name}</h4>
-                            <p className="text-sm text-gray-600">{holiday.type} Holiday</p>
+                          <div key={index} className="bg-white dark:bg-surface-a40 p-3 rounded-lg">
+                            <h4 className="font-medium text-black dark:text-white">{holiday.name}</h4>
+                            <p className="text-sm text-black dark:text-white">{holiday.type} Holiday</p>
                           </div>
                         ))}
                       </div>
@@ -793,52 +823,52 @@ function App() {
               {activeSection === 'workingdays' && workingDaysResult && (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">{t.workingDaysResults}</h3>
+                    <Calendar className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-white dark:text-white">{t.workingDaysResults}</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300 dark:border-blue-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-blue-600">{t.totalDays}</p>
-                          <p className="text-2xl font-bold text-blue-900">{workingDaysResult.totalDays}</p>
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">{t.totalDays}</p>
+                          <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{workingDaysResult.totalDays}</p>
                         </div>
-                        <Calendar className="w-8 h-8 text-blue-400" />
+                        <Calendar className="w-8 h-8 text-blue-500 dark:text-blue-400" />
                       </div>
                     </div>
                     
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg border border-green-300 dark:border-green-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-green-600">{t.workingDays}</p>
-                          <p className="text-2xl font-bold text-green-900">{workingDaysResult.workingDays}</p>
+                          <p className="text-sm font-medium text-green-700 dark:text-green-300">{t.workingDays}</p>
+                          <p className="text-2xl font-bold text-green-900 dark:text-green-100">{workingDaysResult.workingDays}</p>
                         </div>
-                        <CheckCircle className="w-8 h-8 text-green-400" />
+                        <CheckCircle className="w-8 h-8 text-green-500 dark:text-green-400" />
                       </div>
                     </div>
                     
-                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg border border-red-300 dark:border-red-700">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-red-600">{t.holidayDays}</p>
-                          <p className="text-2xl font-bold text-red-900">{workingDaysResult.holidayDays}</p>
+                          <p className="text-sm font-medium text-red-700 dark:text-red-300">{t.holidayDays}</p>
+                          <p className="text-2xl font-bold text-red-900 dark:text-red-100">{workingDaysResult.holidayDays}</p>
                         </div>
-                        <XCircle className="w-8 h-8 text-red-400" />
+                        <XCircle className="w-8 h-8 text-red-500 dark:text-red-400" />
                       </div>
                     </div>
                   </div>
                   
                   {workingDaysResult.holidays && workingDaysResult.holidays.length > 0 && (
                     <div>
-                      <h4 className="text-md font-semibold text-gray-900 mb-3">Holidays in Date Range:</h4>
+                      <h4 className="text-md font-semibold text-white dark:text-white mb-3">Holidays in Date Range:</h4>
                       <div className="space-y-2">
                         {workingDaysResult.holidays.map((holiday, index) => (
-                          <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div key={index} className="p-3 bg-primary-a50 dark:bg-surface-a40 rounded-lg border border-primary-a30 dark:border-surface-a40">
                             <div className="flex items-center justify-between">
                               <div>
-                                <h5 className="font-medium text-gray-900">{holiday.name}</h5>
-                                <p className="text-sm text-gray-600">{formatDate(holiday.date)}</p>
+                                <h5 className="font-medium text-black dark:text-white">{holiday.name}</h5>
+                                <p className="text-sm text-black dark:text-white">{formatDate(holiday.date)}</p>
                               </div>
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 {translateHolidayType(holiday.type)}
@@ -856,15 +886,15 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <MapPin className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">Available Countries</h3>
+                      <MapPin className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                      <h3 className="text-lg font-semibold text-black dark:text-white">Available Countries</h3>
                     </div>
                     
                     <div className="flex items-center space-x-3">
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="px-3 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent text-sm bg-white dark:bg-surface-a20 text-black dark:text-white"
                       >
                         <option value="name">{t.sortByName}</option>
                         <option value="code">{t.sortByCode}</option>
@@ -873,7 +903,7 @@ function App() {
                       <select
                         value={sortOrder}
                         onChange={(e) => setSortOrder(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="px-3 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent text-sm bg-white dark:bg-surface-a20 text-black dark:text-white"
                       >
                         <option value="asc">A-Z</option>
                         <option value="desc">Z-A</option>
@@ -890,15 +920,15 @@ function App() {
                       .map((country) => (
                       <div
                         key={country.countryCode}
-                        className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
+                        className="p-4 border border-gray-200 dark:border-surface-a40 rounded-lg hover:bg-gray-50 dark:hover:bg-surface-a30 transition-colors duration-200 cursor-pointer bg-white dark:bg-surface-a40"
                         onClick={() => handleCountryClick(country.countryCode)}
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium text-gray-900">{country.name}</h4>
-                            <p className="text-sm text-gray-600">{country.countryCode}</p>
+                            <h4 className="font-medium text-black dark:text-white">{country.name}</h4>
+                            <p className="text-sm text-black dark:text-white">{country.countryCode}</p>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronRight className="w-4 h-4 text-black dark:text-white" />
                         </div>
                       </div>
                     ))}
@@ -910,8 +940,8 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <Calendar className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                      <h3 className="text-lg font-semibold text-black dark:text-white">
                         {activeSection === 'range' ? t.dateRangeResults : t.countryHolidays}
                       </h3>
                     </div>
@@ -920,7 +950,7 @@ function App() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="px-3 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent text-sm bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         <option value="date">{t.sortByDate}</option>
                         <option value="name">{t.sortByName}</option>
@@ -930,7 +960,7 @@ function App() {
                       <select
                         value={sortOrder}
                         onChange={(e) => setSortOrder(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        className="px-3 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent text-sm bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
                       >
                         <option value="asc">{sortBy === 'date' ? 'Earliest First' : 'A-Z'}</option>
                         <option value="desc">{sortBy === 'date' ? 'Latest First' : 'Z-A'}</option>
@@ -940,12 +970,12 @@ function App() {
                   
                   <div className="space-y-3">
                     {sortHolidays(holidays).map((holiday, index) => (
-                      <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                      <div key={index} className="p-4 border border-gray-200 dark:border-surface-a40 rounded-lg hover:bg-gray-50 dark:hover:bg-surface-a30 transition-colors duration-200 bg-white dark:bg-surface-a40">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-1">{holiday.name}</h4>
-                            <p className="text-sm text-gray-600 mb-2">{formatDate(holiday.date)}</p>
-                            <div className="flex items-center flex-wrap gap-4 text-xs text-gray-500">
+                            <h4 className="font-medium text-black dark:text-white mb-1">{holiday.name}</h4>
+                            <p className="text-sm text-black dark:text-white mb-2">{formatDate(holiday.date)}</p>
+                            <div className="flex items-center flex-wrap gap-4 text-xs text-black dark:text-white">
                               <span className="flex items-center space-x-1">
                                 <span>Type:</span>
                                 <span className="font-medium">{holiday.type}</span>
@@ -980,14 +1010,120 @@ function App() {
                 </div>
               )}
 
+              {activeSection === 'chat' && (
+                <div className="flex flex-col h-[600px]">
+                  {/* Chat Header */}
+                  <div className="flex items-center space-x-3 mb-4 pb-4 border-b border-primary-a40 dark:border-surface-a30">
+                    <MapPin className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <h3 className="text-lg font-semibold text-white dark:text-white">{t.aiChat.title}</h3>
+                    <span className="text-sm text-white/80 dark:text-surface-a50">({translateCountry(selectedCountry)})</span>
+                  </div>
+                  
+                  {/* Chat Messages */}
+                  <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
+                    {chatHistory.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="w-16 h-16 bg-primary-a30 dark:bg-surface-a30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MapPin className="w-8 h-8 text-primary-a0 dark:text-primary-a30" />
+                        </div>
+                        <h4 className="text-lg font-medium text-white dark:text-white mb-2">{t.aiChat.welcomeTitle}</h4>
+                        <p className="text-white/90 dark:text-surface-a50 max-w-md mx-auto">
+                          {t.aiChat.welcomeMessage}
+                        </p>
+                      </div>
+                    ) : (
+                      chatHistory.map((chat, index) => (
+                        <div key={index} className="space-y-3">
+                          {/* User Message */}
+                          <div className="flex justify-end">
+                            <div className="max-w-xs lg:max-w-md">
+                              <div className="bg-blue-600 text-white rounded-lg rounded-br-none px-4 py-2">
+                                <p className="text-sm">{chat.user}</p>
+                              </div>
+                              <div className="text-xs text-black dark:text-white mt-1 text-right">
+                                {chat.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* AI Response */}
+                          {chat.ai && (
+                            <div className="flex justify-start">
+                              <div className="max-w-xs lg:max-w-md">
+                                <div className="bg-gray-100 dark:bg-surface-a40 text-gray-900 dark:text-white rounded-lg rounded-bl-none px-4 py-2">
+                                  <p className="text-sm whitespace-pre-wrap">{chat.ai}</p>
+                                </div>
+                                <div className="text-xs text-black dark:text-white mt-1">
+                                  {t.aiChat.assistant}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Loading indicator for the last message if AI hasn't responded */}
+                          {index === chatHistory.length - 1 && !chat.ai && loading && (
+                            <div className="flex justify-start">
+                              <div className="max-w-xs lg:max-w-md">
+                                <div className="bg-gray-100 dark:bg-surface-a40 text-black dark:text-white rounded-lg rounded-bl-none px-4 py-2">
+                                  <div className="flex items-center space-x-2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                                    <span className="text-sm text-black dark:text-white">{t.aiChat.thinking}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {/* Chat Input */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={currentMessage}
+                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleChat(currentMessage);
+                          }
+                        }}
+                        placeholder={t.aiChat.inputPlaceholder}
+                        className="flex-1 px-4 py-2 border border-primary-a40 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
+                        disabled={loading}
+                      />
+                      <button
+                        onClick={() => handleChat(currentMessage)}
+                        disabled={loading || !currentMessage.trim()}
+                        className="bg-primary-a0 dark:bg-primary-a20 text-white px-4 py-2 rounded-lg hover:bg-primary-a10 dark:hover:bg-primary-a30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-xs text-white/70 dark:text-surface-a50 mt-2">
+                      {t.aiChat.enterToSend} • {t.aiChat.shiftEnterNewLine}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Show "no holidays found" when search was performed but returned empty results */}
               {!loading && !error && (activeSection === 'range' || activeSection === 'country') && holidays.length === 0 && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Calendar className="w-8 h-8 text-yellow-600" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t.noHolidaysFound}</h3>
-                  <p className="text-gray-600">
+                  <h3 className="text-lg font-medium text-black dark:text-white mb-2">{t.noHolidaysFound}</h3>
+                  <p className="text-black dark:text-white">
                     Try different search criteria or date range.
                   </p>
                 </div>
@@ -998,8 +1134,8 @@ function App() {
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Calendar className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Yet</h3>
-                  <p className="text-gray-600">
+                  <h3 className="text-lg font-medium text-black dark:text-white mb-2">No Results Yet</h3>
+                  <p className="text-black dark:text-white">
                     Select a search method and click the button to get started
                   </p>
                 </div>
@@ -1008,6 +1144,9 @@ function App() {
           </div>
         </div>
       </main>
+
+      {/* Theme Toggle */}
+      <ThemeToggle />
     </div>
   );
 }

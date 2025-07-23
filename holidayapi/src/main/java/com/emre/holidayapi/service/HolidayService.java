@@ -80,6 +80,19 @@ public class HolidayService {
         return repository.findByCountryCodeDateRangeAndAudience(countryCode, start, end, audienceCode);
     }
 
+    // Additional methods for AI service
+    public List<HolidayDefinition> getHolidaysByDate(LocalDate date, String countryCode) {
+        return repository.findByHolidayDateAndCountryCode(date, countryCode);
+    }
+
+    public List<HolidayDefinition> getHolidaysByDateRange(LocalDate start, LocalDate end, String countryCode) {
+        return repository.findByCountryCodeAndDateRange(countryCode, start, end);
+    }
+
+    public List<HolidayDefinition> getHolidaysByDateRangeAndAudience(LocalDate start, LocalDate end, String countryCode, String audienceCode) {
+        return repository.findByCountryCodeDateRangeAndAudience(countryCode, start, end, audienceCode);
+    }
+
     // --- Placeholder implementations for conditions/specs ---
 
     public Object addHolidayCondition(Long id, Object condition) {

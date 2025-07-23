@@ -126,6 +126,34 @@ export interface Translation {
     thisMonth: string;
     thisYear: string;
   };
+
+  // AI Chat
+  aiChat: {
+    title: string;
+    welcomeTitle: string;
+    welcomeMessage: string;
+    countryContext: string;
+    inputPlaceholder: string;
+    sendButton: string;
+    thinking: string;
+    assistant: string;
+    tryAsking: string;
+    enterToSend: string;
+    shiftEnterNewLine: string;
+    suggestions: {
+      todayHoliday: string;
+      holidayRange: string;
+      yearlyHolidays: string;
+      audienceHolidays: string;
+    };
+  };
+
+  // Theme
+  theme: {
+    toggleTooltip: string;
+    darkMode: string;
+    lightMode: string;
+  };
 }
 
 export const translations: Record<string, Translation> = {
@@ -256,6 +284,34 @@ export const translations: Record<string, Translation> = {
       thisMonth: "This Month",
       thisYear: "This Year",
     },
+
+    // AI Chat
+    aiChat: {
+      title: "AI Holiday Assistant",
+      welcomeTitle: "Welcome to Holiday Assistant!",
+      welcomeMessage: "Ask me about holidays, working days, or anything related to your holiday calendar.",
+      countryContext: "Country Context",
+      inputPlaceholder: "Ask about holidays, working days, or anything related...",
+      sendButton: "Send",
+      thinking: "Thinking...",
+      assistant: "Holiday Assistant",
+      tryAsking: "Try asking:",
+      enterToSend: "Press Enter to send",
+      shiftEnterNewLine: "Shift + Enter for new line",
+      suggestions: {
+        todayHoliday: "Is there a holiday today?",
+        holidayRange: "What holidays are between 01/01/2025 - 31/01/2025?",
+        yearlyHolidays: "How many holidays this year?",
+        audienceHolidays: "Show me holidays for students only"
+      }
+    },
+
+    // Theme
+    theme: {
+      toggleTooltip: "Toggle theme",
+      darkMode: "Dark mode",
+      lightMode: "Light mode"
+    },
   },
 
   tr: {
@@ -384,6 +440,34 @@ export const translations: Record<string, Translation> = {
       thisWeek: "Bu Hafta",
       thisMonth: "Bu Ay",
       thisYear: "Bu Yıl",
+    },
+
+    // AI Chat
+    aiChat: {
+      title: "AI Tatil Asistanı",
+      welcomeTitle: "Tatil Asistanına Hoş Geldiniz!",
+      welcomeMessage: "Bana tatiller, çalışma günleri veya tatil takviminizle ilgili herhangi bir şey sorabilirsiniz.",
+      countryContext: "Ülke Bağlamı",
+      inputPlaceholder: "Tatiller, çalışma günleri veya ilgili herhangi bir şey hakkında sorun...",
+      sendButton: "Gönder",
+      thinking: "Düşünüyor...",
+      assistant: "Tatil Asistanı",
+      tryAsking: "Şunları sormayı deneyin:",
+      enterToSend: "Göndermek için Enter'a basın",
+      shiftEnterNewLine: "Yeni satır için Shift + Enter",
+      suggestions: {
+        todayHoliday: "Bugün tatil var mı?",
+        holidayRange: "01/01/2025 - 31/01/2025 arasında hangi tatiller var?",
+        yearlyHolidays: "Bu yıl kaç tatil var?",
+        audienceHolidays: "Sadece öğrenciler için tatilleri göster"
+      }
+    },
+
+    // Theme
+    theme: {
+      toggleTooltip: "Tema değiştir",
+      darkMode: "Karanlık mod",
+      lightMode: "Aydınlık mod"
     },
   },
 };

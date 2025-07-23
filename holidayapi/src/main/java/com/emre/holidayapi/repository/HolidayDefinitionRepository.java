@@ -38,4 +38,7 @@ public interface HolidayDefinitionRepository extends JpaRepository<HolidayDefini
                    "AND ha.audience_code = :audienceCode",
            nativeQuery = true)
     List<HolidayDefinition> findByCountryCodeDateRangeAndAudience(String countryCode, LocalDate start, LocalDate end, String audienceCode);
+
+    @Query("SELECT h FROM HolidayDefinition h JOIN h.template t JOIN CountryHoliday ch ON ch.template = t WHERE ch.country.countryCode = :countryCode AND h.holidayDate = :date")
+    List<HolidayDefinition> findByHolidayDateAndCountryCode(LocalDate date, String countryCode);
 }
