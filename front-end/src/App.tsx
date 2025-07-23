@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -53,6 +53,7 @@ function App() {
   const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
   const [chatHistory, setChatHistory] = useState<{ user: string; ai: string; timestamp: Date }[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const [includeEndDate, setIncludeEndDate] = useState(true); // For working days calculator
   const [workingDaysResult, setWorkingDaysResult] = useState<{
     totalDays: number;
@@ -188,6 +189,13 @@ function App() {
   useEffect(() => {
     handleCountrySearch();
   }, []);
+
+  // Auto-scroll chat to bottom when new messages are added
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
 
   const formatDate = (dateString: string) => {
     const locale = language === 'tr' ? 'tr-TR' : 'en-US';
@@ -1020,7 +1028,7 @@ function App() {
                   </div>
                   
                   {/* Chat Messages */}
-                  <div className="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
+                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
                     {chatHistory.length === 0 ? (
                       <div className="text-center py-8">
                         <div className="w-16 h-16 bg-primary-a30 dark:bg-surface-a30 rounded-full flex items-center justify-center mx-auto mb-4">
