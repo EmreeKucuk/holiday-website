@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Globe, Clock, Search, MapPin, ChevronRight, Loader2, CheckCircle, XCircle, Code } from 'lucide-react';
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import { useTranslation } from './TranslationContext';
 import ThemeToggle from './ThemeToggle';
+import ApiExplorer from './ApiExplorer';
 
 const MySwal = withReactContent(Swal);
 
@@ -68,6 +69,7 @@ function App() {
     { id: 'workingdays', label: t.workingDaysCalculator || 'Working Days Calculator', icon: Search },
     { id: 'search', label: 'Search Countries', icon: Search },
     { id: 'chat', label: t.aiChat.title, icon: MapPin },
+    { id: 'api-explorer', label: 'API Explorer', icon: Code },
   ];
 
   const handleDateRangeSearch = async () => {
@@ -1128,6 +1130,12 @@ function App() {
                       {t.aiChat.enterToSend} • {t.aiChat.shiftEnterNewLine}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeSection === 'api-explorer' && (
+                <div className="w-full">
+                  <ApiExplorer />
                 </div>
               )}
 
