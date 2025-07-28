@@ -344,9 +344,13 @@ const ApiExplorer: React.FC = () => {
     
     try {
       const url = buildUrl(endpoint);
+      console.log(`Testing endpoint: ${url}`);
       let response;
       
+      const startTime = Date.now();
+      
       if (endpoint.method === 'POST' && endpoint.body) {
+        console.log(`Sending POST request with body:`, endpoint.body);
         response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -360,18 +364,24 @@ const ApiExplorer: React.FC = () => {
         });
       }
       
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+      console.log(`Response received in ${responseTime}ms, status: ${response.status}`);
+      
       const data = await response.json();
       
       setTestResults(new Map([...testResults, [endpointKey, {
         success: response.ok,
         status: response.status,
         data: data,
-        url: url
+        url: url,
+        responseTime: responseTime
       }]]));
     } catch (error) {
+      console.error(`Error testing endpoint:`, error);
       setTestResults(new Map([...testResults, [endpointKey, {
         success: false,
-        error: error.message,
+        error: (error instanceof Error ? error.message : String(error)),
         url: buildUrl(endpoint)
       }]]));
     } finally {
@@ -546,7 +556,8 @@ const ApiExplorer: React.FC = () => {
                               <XCircle className="w-4 h-4 text-red-600" />
                             )}
                             <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              Response {result.status && `(${result.status})`}:
+                              Response {result.status && `(${result.status})`}
+                              {result.responseTime && ` - ${result.responseTime}ms`}:
                             </span>
                           </div>
                           <pre className={`p-3 rounded-md text-sm overflow-x-auto ${

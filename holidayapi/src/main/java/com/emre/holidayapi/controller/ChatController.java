@@ -1,6 +1,6 @@
 package com.emre.holidayapi.controller;
 
-import com.emre.holidayapi.service.HolidayAiService;
+import com.emre.holidayapi.service.IntelligentHolidayAiService;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -9,10 +9,10 @@ import java.util.Map;
 @RequestMapping("/api")
 public class ChatController {
 
-    private final HolidayAiService holidayAiService;
+    private final IntelligentHolidayAiService intelligentHolidayAiService;
 
-    public ChatController(HolidayAiService holidayAiService) {
-        this.holidayAiService = holidayAiService;
+    public ChatController(IntelligentHolidayAiService intelligentHolidayAiService) {
+        this.intelligentHolidayAiService = intelligentHolidayAiService;
     }
 
     @PostMapping("/chat")
@@ -22,11 +22,14 @@ public class ChatController {
         String language = request.getOrDefault("language", "en");
         
         if (userMessage == null || userMessage.trim().isEmpty()) {
-            return Map.of("reply", "Please provide a message to get started!");
+            String emptyMessage = "en".equals(language) 
+                ? "Please provide a message to get started! I'm here to provide deep insights about holidays, cultural patterns, and historical significance."
+                : "Başlamak için lütfen bir mesaj gönderin! Tatiller, kültürel desenler ve tarihsel önem hakkında derinlemesine bilgiler sunmak için buradayım.";
+            return Map.of("reply", emptyMessage);
         }
         
         try {
-            String aiResponse = holidayAiService.processHolidayQuery(userMessage, countryCode, language);
+            String aiResponse = intelligentHolidayAiService.processHolidayQuery(userMessage, countryCode, language);
             return Map.of("reply", aiResponse);
         } catch (Exception e) {
             return Map.of("reply", "I'm sorry, I encountered an error while processing your request. Please try again.");

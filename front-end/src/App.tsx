@@ -300,6 +300,12 @@ function App() {
     setCurrentMessage('');
     
     try {
+      console.log('Sending chat request:', { message, country: selectedCountry, language });
+      
+      // Add timeout to the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds timeout
+
       const response = await fetch('http://localhost:8080/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -307,18 +313,40 @@ function App() {
           message,
           country: selectedCountry,
           language: language 
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('AI response received:', data);
+      
       setChatHistory(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = { ...updated[updated.length - 1], ai: data.reply };
         return updated;
       });
-    } catch (err) {
+    } catch (error) {
+      console.error('Chat error:', error);
+      let errorMessage = 'Sorry, I encountered an error. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out. The AI is taking too long to respond. Please try a shorter message.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Cannot connect to the server. Please make sure the backend is running.';
+        }
+      }
+      
       setChatHistory(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { ...updated[updated.length - 1], ai: 'Sorry, I encountered an error. Please try again.' };
+        updated[updated.length - 1] = { ...updated[updated.length - 1], ai: errorMessage };
         return updated;
       });
     } finally {
