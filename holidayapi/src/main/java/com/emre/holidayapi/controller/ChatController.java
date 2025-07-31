@@ -1,6 +1,6 @@
 package com.emre.holidayapi.controller;
 
-import com.emre.holidayapi.service.IntelligentHolidayAiService;
+import com.emre.holidayapi.service.HolidayAiService;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -9,10 +9,10 @@ import java.util.Map;
 @RequestMapping("/api")
 public class ChatController {
 
-    private final IntelligentHolidayAiService intelligentHolidayAiService;
+    private final HolidayAiService holidayAiService;
 
-    public ChatController(IntelligentHolidayAiService intelligentHolidayAiService) {
-        this.intelligentHolidayAiService = intelligentHolidayAiService;
+    public ChatController(HolidayAiService holidayAiService) {
+        this.holidayAiService = holidayAiService;
     }
 
     @PostMapping("/chat")
@@ -29,7 +29,7 @@ public class ChatController {
         }
         
         try {
-            String aiResponse = intelligentHolidayAiService.processHolidayQuery(userMessage, countryCode, language);
+            String aiResponse = holidayAiService.processHolidayQuery(userMessage, countryCode, language);
             return Map.of("reply", aiResponse);
         } catch (Exception e) {
             return Map.of("reply", "I'm sorry, I encountered an error while processing your request. Please try again.");

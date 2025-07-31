@@ -34,3 +34,4 @@ build/
 
 ### Application Properties with Sensitive Data ###
 src/main/resources/application.properties
+src/test/resources/application-test.properties

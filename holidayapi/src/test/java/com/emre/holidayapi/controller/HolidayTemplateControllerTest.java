@@ -4,10 +4,10 @@ import com.emre.holidayapi.model.HolidayTemplate;
 import com.emre.holidayapi.service.HolidayTemplateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,13 +17,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(HolidayTemplateController.class)
 class HolidayTemplateControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private HolidayTemplateService holidayTemplateService;
 
     private HolidayTemplate template1;
@@ -31,6 +29,9 @@ class HolidayTemplateControllerTest {
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
+        HolidayTemplateController holidayTemplateController = new HolidayTemplateController(holidayTemplateService);
+        mockMvc = MockMvcBuilders.standaloneSetup(holidayTemplateController).build();
         template1 = new HolidayTemplate();
         template1.setId(1L);
         template1.setCode("new_year");

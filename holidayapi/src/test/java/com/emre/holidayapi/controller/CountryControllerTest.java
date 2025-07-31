@@ -4,10 +4,10 @@ import com.emre.holidayapi.model.Country;
 import com.emre.holidayapi.service.CountryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,13 +17,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(CountryController.class)
 class CountryControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private CountryService countryService;
 
     private Country country1;
@@ -31,6 +29,9 @@ class CountryControllerTest {
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
+        CountryController countryController = new CountryController(countryService);
+        mockMvc = MockMvcBuilders.standaloneSetup(countryController).build();
         country1 = new Country();
         country1.setCountryCode("TR");
         country1.setCountryName("Turkey");
@@ -51,9 +52,9 @@ class CountryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].countryCode", is("TR")))
-                .andExpect(jsonPath("$[0].countryName", is("Turkey")))
+                .andExpect(jsonPath("$[0].name", is("Turkey")))
                 .andExpect(jsonPath("$[1].countryCode", is("US")))
-                .andExpect(jsonPath("$[1].countryName", is("United States")));
+                .andExpect(jsonPath("$[1].name", is("United States")));
     }
 
     @Test

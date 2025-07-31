@@ -3,11 +3,12 @@ package com.emre.holidayapi.controller;
 import com.emre.holidayapi.service.HolidayAiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Map;
 
@@ -17,17 +18,21 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(ChatController.class)
 class ChatControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private HolidayAiService holidayAiService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        ChatController chatController = new ChatController(holidayAiService);
+        mockMvc = MockMvcBuilders.standaloneSetup(chatController).build();
+    }
 
     @Test
     void chat_WithValidMessage_ShouldReturnAiResponse() throws Exception {
@@ -73,7 +78,7 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reply", is("Please provide a message to get started!")));
+                .andExpect(jsonPath("$.reply", is("Please provide a message to get started! I'm here to provide deep insights about holidays, cultural patterns, and historical significance.")));
     }
 
     @Test
@@ -86,7 +91,7 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reply", is("Please provide a message to get started!")));
+                .andExpect(jsonPath("$.reply", is("Please provide a message to get started! I'm here to provide deep insights about holidays, cultural patterns, and historical significance.")));
     }
 
     @Test
@@ -99,7 +104,7 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reply", is("Please provide a message to get started!")));
+                .andExpect(jsonPath("$.reply", is("Please provide a message to get started! I'm here to provide deep insights about holidays, cultural patterns, and historical significance.")));
     }
 
     @Test

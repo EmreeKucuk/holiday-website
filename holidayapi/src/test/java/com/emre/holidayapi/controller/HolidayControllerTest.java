@@ -9,11 +9,11 @@ import com.emre.holidayapi.repository.HolidayTemplateRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -26,25 +26,22 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(HolidayController.class)
 class HolidayControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private HolidayService holidayService;
 
-    @MockitoBean
+    @Mock
     private AudienceService audienceService;
 
-    @MockitoBean
+    @Mock
     private TranslationRepository translationRepository;
 
-    @MockitoBean
+    @Mock
     private HolidayTemplateRepository holidayTemplateRepository;
 
-    @Autowired
     private ObjectMapper objectMapper;
 
     private HolidayDefinition holidayDefinition;
@@ -53,6 +50,15 @@ class HolidayControllerTest {
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
+        HolidayController holidayController = new HolidayController(holidayService, audienceService, translationRepository, holidayTemplateRepository);
+        mockMvc = MockMvcBuilders.standaloneSetup(holidayController).build();
+        
+        // Configure ObjectMapper for LocalDate serialization
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        
         holidayTemplate = new HolidayTemplate();
         holidayTemplate.setId(1L);
         holidayTemplate.setCode("new_year");
@@ -247,10 +253,8 @@ class HolidayControllerTest {
     @Test
     void getTranslatedAudiences_ShouldReturnTranslatedAudiences() throws Exception {
         // Given
-        List<AudienceDto> translatedAudiences = Arrays.asList(
-                new AudienceDto("general", "General Public")
-        );
-        when(audienceService.getAllAudiencesTranslated(anyString())).thenReturn(translatedAudiences);
+        List<Audience> audiences = Arrays.asList(audience);
+        when(audienceService.getAllAudiences()).thenReturn(audiences);
 
         // When & Then
         mockMvc.perform(get("/api/holidays/audiences/translated")
