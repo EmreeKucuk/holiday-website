@@ -769,7 +769,7 @@ function App() {
               {activeSection === 'chat' && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3 mb-4">
-                    <MapPin className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
+                    <MapPin className="w-5 h-5 text-primary-black dark:text-primary-a30" />
                     <h3 className="text-lg font-semibold text-black dark:text-white">{t.aiChat.title}</h3>
                   </div>
                   
@@ -827,7 +827,7 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
                     <Clock className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
-                    <h3 className="text-lg font-semibold text-white dark:text-white">Today's Result</h3>
+                    <h3 className="text-lg font-semibold text-black dark:text-white">Today's Result</h3>
                   </div>
                   
                   <div className={`p-4 rounded-lg border-2 ${
@@ -869,7 +869,7 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3 mb-4">
                     <Calendar className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
-                    <h3 className="text-lg font-semibold text-white dark:text-white">{t.workingDaysResults}</h3>
+                    <h3 className="text-lg font-semibold text-a60 dark:text-white">{t.workingDaysResults}</h3>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1060,8 +1060,8 @@ function App() {
                   {/* Chat Header */}
                   <div className="flex items-center space-x-3 mb-4 pb-4 border-b border-primary-a40 dark:border-surface-a30">
                     <MapPin className="w-5 h-5 text-primary-a0 dark:text-primary-a30" />
-                    <h3 className="text-lg font-semibold text-white dark:text-white">{t.aiChat.title}</h3>
-                    <span className="text-sm text-white/80 dark:text-surface-a50">({translateCountry(selectedCountry)})</span>
+                    <h3 className="text-lg font-semibold text-black dark:text-white">{t.aiChat.title}</h3>
+                    <span className="text-sm text-black/80 dark:text-surface-a50">({translateCountry(selectedCountry)})</span>
                   </div>
                   
                   {/* Chat Messages */}
@@ -1069,10 +1069,10 @@ function App() {
                     {chatHistory.length === 0 ? (
                       <div className="text-center py-8">
                         <div className="w-16 h-16 bg-primary-a30 dark:bg-surface-a30 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <MapPin className="w-8 h-8 text-primary-a0 dark:text-primary-a30" />
+                          <MapPin className="w-8 h-8 text-primary-a60 dark:text-primary-a30" />
                         </div>
-                        <h4 className="text-lg font-medium text-white dark:text-white mb-2">{t.aiChat.welcomeTitle}</h4>
-                        <p className="text-white/90 dark:text-surface-a50 max-w-md mx-auto">
+                        <h4 className="text-lg font-medium text-black dark:text-white mb-2">{t.aiChat.welcomeTitle}</h4>
+                        <p className="text-black/90 dark:text-surface-a50 max-w-md mx-auto">
                           {t.aiChat.welcomeMessage}
                         </p>
                       </div>

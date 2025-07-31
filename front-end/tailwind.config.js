@@ -11,7 +11,8 @@ export default {
           a20: '#764ba2cc',
           a30: '#764ba2e2',
           a40: '#764ba2',
-          a50: '#cdcfed4b'
+          a50: '#cdcfed4b',
+          a60: '#000000ff',
         },
         surface: {
           a0: '#121212',
