@@ -6,11 +6,11 @@ export default {
     extend: {
       colors: {
         primary: {
-          a0: '#8e96d6ac',
-          a10: '#9ba1dba9',
-          a20: '#a8acdfb6',
-          a30: '#b4b8e4b2',
-          a40: '#c1c3e9ac',
+          a0: '#764ba2',
+          a10: '#764ba2b6',
+          a20: '#764ba2cc',
+          a30: '#764ba2e2',
+          a40: '#764ba2',
           a50: '#cdcfed4b'
         },
         surface: {
