@@ -56,6 +56,8 @@ function App() {
   const [currentMessage, setCurrentMessage] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [includeEndDate, setIncludeEndDate] = useState(true); // For working days calculator
+  const [showHolidaysInCalculator, setShowHolidaysInCalculator] = useState(true); // Show/hide holidays list in working days calculator
+  const [holidaysLoadedForCurrentCalculation, setHolidaysLoadedForCurrentCalculation] = useState(false); // Track if holidays were loaded for current calculation
   const [workingDaysResult, setWorkingDaysResult] = useState<{
     totalDays: number;
     workingDays: number;
@@ -79,7 +81,7 @@ function App() {
     try {
       let url = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}`;
       if (selectedAudience) {
-        url += `&audience=${selectedAudience}`;
+        url += `&audience=${encodeURIComponent(selectedAudience)}`;
       }
       console.log('Date Range Search - URL:', url);
       console.log('Date Range Search - Start:', dateRange.start, 'End:', dateRange.end, 'Country:', selectedCountry);
@@ -102,7 +104,7 @@ function App() {
     try {
       let url = `http://localhost:8080/api/holidays/today?country=${selectedCountry}&language=${language}`;
       if (selectedAudience) {
-        url += `&audience=${selectedAudience}`;
+        url += `&audience=${encodeURIComponent(selectedAudience)}`;
       }
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch today\'s holidays');
@@ -122,17 +124,97 @@ function App() {
     if (!dateRange.start || !dateRange.end) return;
     setLoading(true);
     setError(null);
+    setHolidaysLoadedForCurrentCalculation(false); // Reset holidays loaded flag
     try {
-      const url = `http://localhost:8080/api/holidays/working-days?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}&includeEndDate=${includeEndDate}`;
+      // First, get the working days calculation
+      let url = `http://localhost:8080/api/holidays/working-days?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}&includeEndDate=${includeEndDate}`;
+      if (selectedAudience) {
+        url += `&audience=${encodeURIComponent(selectedAudience)}`;
+      }
       console.log('Working Days Calculation - URL:', url);
+      console.log('Selected Audience:', selectedAudience);
+      console.log('Working Days Calculation Parameters:', {
+        start: dateRange.start,
+        end: dateRange.end,
+        country: selectedCountry,
+        language: language,
+        includeEndDate: includeEndDate,
+        audience: selectedAudience
+      });
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to calculate working days');
       const data = await response.json();
       console.log('Working Days Calculation - Response:', data);
-      setWorkingDaysResult(data);
+      console.log('Working Days Calculation - Audience filter applied:', selectedAudience || 'All audiences');
+      
+      // If user wants to see holidays, fetch them separately for efficiency
+      let holidaysData = [];
+      if (showHolidaysInCalculator && data.holidayDays > 0) {
+        try {
+          let holidaysUrl = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}`;
+          if (selectedAudience) {
+            holidaysUrl += `&audience=${encodeURIComponent(selectedAudience)}`;
+          }
+          console.log('Fetching holidays for display - URL:', holidaysUrl);
+          console.log('Holidays fetch parameters:', {
+            start: dateRange.start,
+            end: dateRange.end,
+            country: selectedCountry,
+            language: language,
+            audience: selectedAudience
+          });
+          const holidaysResponse = await fetch(holidaysUrl);
+          if (holidaysResponse.ok) {
+            holidaysData = await holidaysResponse.json();
+            console.log('Holidays fetched for display:', holidaysData);
+            setHolidaysLoadedForCurrentCalculation(true);
+          }
+        } catch (holidaysErr) {
+          console.error('Failed to fetch holidays for display:', holidaysErr);
+          // Don't fail the entire operation if holidays can't be fetched
+        }
+      }
+      
+      // Combine the working days result with holidays if fetched
+      setWorkingDaysResult({
+        ...data,
+        holidays: holidaysData
+      });
     } catch (err) {
       console.error('Working Days Calculation - Error:', err);
       setError(t.apiError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHolidaysForWorkingDays = async () => {
+    if (!workingDaysResult || !dateRange.start || !dateRange.end || workingDaysResult.holidayDays === 0 || holidaysLoadedForCurrentCalculation) return;
+    
+    setLoading(true);
+    try {
+      let holidaysUrl = `http://localhost:8080/api/holidays/range?start=${dateRange.start}&end=${dateRange.end}&country=${selectedCountry}&language=${language}`;
+      if (selectedAudience) {
+        holidaysUrl += `&audience=${encodeURIComponent(selectedAudience)}`;
+      }
+      console.log('Loading holidays for working days display - URL:', holidaysUrl);
+      console.log('Load holidays parameters:', {
+        start: dateRange.start,
+        end: dateRange.end,
+        country: selectedCountry,
+        language: language,
+        audience: selectedAudience
+      });
+      const holidaysResponse = await fetch(holidaysUrl);
+      if (holidaysResponse.ok) {
+        const holidaysData = await holidaysResponse.json();
+        console.log('Holidays loaded for working days display:', holidaysData);
+        setWorkingDaysResult(prev => prev ? { ...prev, holidays: holidaysData } : null);
+        setHolidaysLoadedForCurrentCalculation(true);
+      }
+    } catch (holidaysErr) {
+      console.error('Failed to load holidays for working days display:', holidaysErr);
+      setError('Failed to load holidays list');
     } finally {
       setLoading(false);
     }
@@ -198,6 +280,16 @@ function App() {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatHistory]);
+
+  // Reset working days calculation when audience changes
+  useEffect(() => {
+    if (workingDaysResult) {
+      // Clear the current result to force recalculation with new audience
+      setWorkingDaysResult(null);
+      setHolidaysLoadedForCurrentCalculation(false);
+      console.log('Audience changed, clearing working days result to force recalculation');
+    }
+  }, [selectedAudience]);
 
   const formatDate = (dateString: string) => {
     const locale = language === 'tr' ? 'tr-TR' : 'en-US';
@@ -634,6 +726,24 @@ function App() {
                       </select>
                     </div>
                     
+                    <div>
+                      <label className="block text-sm font-medium text-black dark:text-white mb-2">
+                        {t.selectAudience}
+                      </label>
+                      <select
+                        value={selectedAudience}
+                        onChange={(e) => setSelectedAudience(e.target.value)}
+                        className="w-full px-4 py-2 border border-primary-a20 dark:border-surface-a40 rounded-lg focus:ring-2 focus:ring-primary-a0 focus:border-transparent bg-white dark:bg-surface-a20 text-gray-900 dark:text-white"
+                      >
+                        <option value="">{t.allAudiences}</option>
+                        {audiences.map((audience) => (
+                          <option key={audience.code} value={audience.code}>
+                            {translateAudience(audience.audienceName)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
                     <div className="flex items-center space-x-4">
                       <label className="block text-sm font-medium text-black dark:text-white">
                         End Date Calculation:
@@ -661,6 +771,48 @@ function App() {
                         </label>
                       </div>
                     </div>
+                    
+                    <div className="flex items-center space-x-4">
+                      <label className="block text-sm font-medium text-black dark:text-white">
+                        Show Holidays List:
+                      </label>
+                      <div className="flex items-center space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            name="showHolidaysOption"
+                            checked={showHolidaysInCalculator}
+                            onChange={() => {
+                              setShowHolidaysInCalculator(true);
+                              // If we already have working days result but no holidays loaded yet, load them
+                              if (workingDaysResult && !holidaysLoadedForCurrentCalculation && workingDaysResult.holidayDays > 0) {
+                                loadHolidaysForWorkingDays();
+                              }
+                            }}
+                            className="mr-2 text-primary-a0"
+                          />
+                          <span className="text-sm text-black dark:text-white">Show Holidays</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            name="showHolidaysOption"
+                            checked={!showHolidaysInCalculator}
+                            onChange={() => setShowHolidaysInCalculator(false)}
+                            className="mr-2 text-primary-a0"
+                          />
+                          <span className="text-sm text-black dark:text-white">Hide Holidays</span>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    {!workingDaysResult && selectedAudience && (
+                      <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-300 dark:border-blue-700">
+                        <p className="text-sm text-blue-800 dark:text-blue-300">
+                          ℹ️ Audience "{translateAudience(audiences.find(a => a.code === selectedAudience)?.audienceName || selectedAudience)}" selected. Click "Calculate" to get results for this audience.
+                        </p>
+                      </div>
+                    )}
                     
                     <button
                       onClick={handleWorkingDaysCalculation}
@@ -904,24 +1056,39 @@ function App() {
                     </div>
                   </div>
                   
-                  {workingDaysResult.holidays && workingDaysResult.holidays.length > 0 && (
+                  {showHolidaysInCalculator && (
                     <div>
                       <h4 className="text-md font-semibold text-white dark:text-white mb-3">Holidays in Date Range:</h4>
-                      <div className="space-y-2">
-                        {workingDaysResult.holidays.map((holiday, index) => (
-                          <div key={index} className="p-3 bg-primary-a50 dark:bg-surface-a40 rounded-lg border border-primary-a30 dark:border-surface-a40">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h5 className="font-medium text-black dark:text-white">{holiday.name}</h5>
-                                <p className="text-sm text-black dark:text-white">{formatDate(holiday.date)}</p>
+                      {loading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-primary-a0 dark:text-primary-a30 mr-2" />
+                          <span className="text-black dark:text-white">Loading holidays...</span>
+                        </div>
+                      ) : workingDaysResult.holidays && workingDaysResult.holidays.length > 0 ? (
+                        <div className="space-y-2">
+                          {workingDaysResult.holidays.map((holiday, index) => (
+                            <div key={index} className="p-3 bg-primary-a50 dark:bg-surface-a40 rounded-lg border border-primary-a30 dark:border-surface-a40">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h5 className="font-medium text-black dark:text-white">{holiday.name}</h5>
+                                  <p className="text-sm text-black dark:text-white">{formatDate(holiday.date)}</p>
+                                </div>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {translateHolidayType(holiday.type)}
+                                </span>
                               </div>
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {translateHolidayType(holiday.type)}
-                              </span>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : workingDaysResult.holidayDays > 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-black dark:text-white">Click "Show Holidays" and then recalculate to see the holidays list.</p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-black dark:text-white">No holidays found in the selected date range.</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
