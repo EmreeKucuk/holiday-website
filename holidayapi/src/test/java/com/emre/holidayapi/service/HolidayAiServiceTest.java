@@ -34,6 +34,9 @@ class HolidayAiServiceTest {
     private HolidayService holidayService;
 
     @Mock
+    private HolidayTemplateService holidayTemplateService;
+
+    @Mock
     private AudienceService audienceService;
 
     @Mock
@@ -41,6 +44,9 @@ class HolidayAiServiceTest {
 
     @Mock
     private TranslationRepository translationRepository;
+
+    @Mock
+    private HolidayAudienceRepository holidayAudienceRepository;
 
     @InjectMocks
     private HolidayAiService holidayAiService;
@@ -56,7 +62,7 @@ class HolidayAiServiceTest {
         when(chatClientBuilder.build()).thenReturn(chatClient);
         
         // Initialize HolidayAiService with mocked dependencies
-        holidayAiService = new HolidayAiService(chatClientBuilder, holidayService, audienceService, countryRepository, translationRepository);
+        holidayAiService = new HolidayAiService(chatClientBuilder, holidayService, holidayTemplateService, audienceService, countryRepository, translationRepository, holidayAudienceRepository);
 
         // Setup test data
         holidayTemplate = new HolidayTemplate();
@@ -352,5 +358,104 @@ class HolidayAiServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response).isNotEmpty();
+    }
+
+    @Test
+    void processHolidayQuery_ShouldCreateHoliday_WhenUserRequestsHolidayCreation() {
+        // Given
+        String userMessage = "add a holiday called \"Example Day\" to today for example audience";
+        String countryCode = "TR";
+        String language = "tr";
+        
+        // Mock template service - return null first (template doesn't exist), then return saved template
+        HolidayTemplate template = new HolidayTemplate();
+        template.setId(1L);
+        template.setDefaultName("Example Day");
+        template.setCode("example_day");
+        template.setType("CUSTOM");
+        
+        when(holidayTemplateService.findByCode("example_day")).thenReturn(null);
+        when(holidayTemplateService.createTemplate(any(HolidayTemplate.class))).thenReturn(template);
+        
+        HolidayDefinition createdHoliday = new HolidayDefinition();
+        createdHoliday.setId(1L);
+        createdHoliday.setHolidayDate(LocalDate.now());
+        createdHoliday.setTemplate(template);
+
+        when(holidayService.createHoliday(any(HolidayDefinition.class))).thenReturn(createdHoliday);
+
+        // When
+        String response = holidayAiService.processHolidayQuery(userMessage, countryCode, language);
+
+        // Then
+        assertThat(response).contains("başarıyla oluşturuldu");
+        verify(holidayService, times(1)).createHoliday(any(HolidayDefinition.class));
+        verify(holidayTemplateService, times(1)).createTemplate(any(HolidayTemplate.class));
+    }
+
+    @Test
+    void processHolidayQuery_ShouldCreateGeneralHoliday_WhenNoAudienceSpecified() {
+        // Given
+        String userMessage = "create a holiday for tomorrow called Test Day";
+        String countryCode = "TR";
+        String language = "tr";
+        
+        // Mock template service - return null first (template doesn't exist), then return saved template
+        HolidayTemplate template = new HolidayTemplate();
+        template.setId(2L);
+        template.setDefaultName("Test Day");
+        template.setCode("test_day");
+        template.setType("CUSTOM");
+        
+        when(holidayTemplateService.findByCode("test_day")).thenReturn(null);
+        when(holidayTemplateService.createTemplate(any(HolidayTemplate.class))).thenReturn(template);
+        
+        HolidayDefinition createdHoliday = new HolidayDefinition();
+        createdHoliday.setId(1L);
+        createdHoliday.setHolidayDate(LocalDate.now().plusDays(1));
+        createdHoliday.setTemplate(template);
+
+        when(holidayService.createHoliday(any(HolidayDefinition.class))).thenReturn(createdHoliday);
+
+        // When
+        String response = holidayAiService.processHolidayQuery(userMessage, countryCode, language);
+
+        // Then
+        assertThat(response).contains("başarıyla oluşturuldu");
+        verify(holidayService, times(1)).createHoliday(any(HolidayDefinition.class));
+        verify(holidayTemplateService, times(1)).createTemplate(any(HolidayTemplate.class));
+    }
+
+    @Test
+    void processHolidayQuery_ShouldCreateHoliday_WhenMessageContainsLastInHolidayName() {
+        // Given - Testing the specific user case: "Last Day at Internship"
+        String userMessage = "add a holiday called \"Last Day at Internship\" to today for only \"general public\" audience";
+        String countryCode = "TR";
+        String language = "tr";
+        
+        // Mock template service - return null first (template doesn't exist), then return saved template
+        HolidayTemplate template = new HolidayTemplate();
+        template.setId(3L);
+        template.setDefaultName("Last Day at Internship");
+        template.setCode("last_day_at_internship");
+        template.setType("CUSTOM");
+        
+        when(holidayTemplateService.findByCode("last_day_at__nternship")).thenReturn(null);
+        when(holidayTemplateService.createTemplate(any(HolidayTemplate.class))).thenReturn(template);
+        
+        HolidayDefinition createdHoliday = new HolidayDefinition();
+        createdHoliday.setId(1L);
+        createdHoliday.setHolidayDate(LocalDate.now());
+        createdHoliday.setTemplate(template);
+
+        when(holidayService.createHoliday(any(HolidayDefinition.class))).thenReturn(createdHoliday);
+
+        // When
+        String response = holidayAiService.processHolidayQuery(userMessage, countryCode, language);
+
+        // Then
+        assertThat(response).contains("başarıyla oluşturuldu");
+        verify(holidayService, times(1)).createHoliday(any(HolidayDefinition.class));
+        verify(holidayTemplateService, times(1)).createTemplate(any(HolidayTemplate.class));
     }
 }

@@ -16,4 +16,12 @@ public class HolidayTemplateService {
     public List<HolidayTemplate> getAllTemplates() {
         return repository.findAll();
     }
+
+    public HolidayTemplate createTemplate(HolidayTemplate template) {
+        return repository.save(template);
+    }
+
+    public HolidayTemplate findByCode(String code) {
+        return repository.findByCode(code);
+    }
 }

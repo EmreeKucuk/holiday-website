@@ -383,6 +383,7 @@ public class HolidayController {
         @RequestParam String start,
         @RequestParam String end,
         @RequestParam(required = false) String country,
+        @RequestParam(required = false) String audience,
         @RequestParam(required = false, defaultValue = "en") String language,
         @RequestParam(required = false, defaultValue = "true") boolean includeEndDate
     ) {
@@ -392,7 +393,11 @@ public class HolidayController {
         // Get holidays in the date range
         List<HolidayDefinition> holidays;
         if (country != null && !country.isEmpty()) {
-            holidays = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+            if (audience != null && !audience.isEmpty()) {
+                holidays = holidayService.getHolidaysByCountryDateRangeAndAudience(country, startDate, endDate, audience);
+            } else {
+                holidays = holidayService.getHolidaysByCountryAndDateRange(country, startDate, endDate);
+            }
         } else {
             holidays = holidayService.getHolidaysInRange(startDate, endDate);
         }

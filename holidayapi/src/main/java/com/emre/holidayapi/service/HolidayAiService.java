@@ -23,27 +23,38 @@ public class HolidayAiService {
 
     private final ChatClient chatClient;
     private final HolidayService holidayService;
+    private final HolidayTemplateService holidayTemplateService;
     private final AudienceService audienceService;
     private final CountryRepository countryRepository;
     private final TranslationRepository translationRepository;
+    private final HolidayAudienceRepository holidayAudienceRepository;
 
     public HolidayAiService(ChatClient.Builder chatClientBuilder, 
                            HolidayService holidayService, 
+                           HolidayTemplateService holidayTemplateService,
                            AudienceService audienceService,
                            CountryRepository countryRepository,
-                           TranslationRepository translationRepository) {
+                           TranslationRepository translationRepository,
+                           HolidayAudienceRepository holidayAudienceRepository) {
         this.chatClient = chatClientBuilder.build();
         this.holidayService = holidayService;
+        this.holidayTemplateService = holidayTemplateService;
         this.audienceService = audienceService;
         this.countryRepository = countryRepository;
         this.translationRepository = translationRepository;
+        this.holidayAudienceRepository = holidayAudienceRepository;
     }
 
     public String processHolidayQuery(String userMessage, String countryCode, String language) {
         try {
             String lowerMessage = userMessage.toLowerCase();
             
-            // Check if asking about today's holiday
+            // Check if requesting to add/create a holiday FIRST (highest priority)
+            if (containsHolidayCreationKeywords(lowerMessage)) {
+                return handleHolidayCreationQuery(userMessage, countryCode, language);
+            }
+            
+            // Check if asking about today's holiday (but not creating a holiday)
             if (lowerMessage.contains("today") && lowerMessage.contains("holiday")) {
                 return handleTodayHolidayQuery(countryCode, language);
             }
@@ -231,6 +242,52 @@ public class HolidayAiService {
         return response.toString();
     }
 
+    private String handleHolidayCreationQuery(String userMessage, String countryCode, String language) {
+        try {
+            // Extract holiday information from the message
+            HolidayCreationInfo creationInfo = extractHolidayCreationInfo(userMessage, language);
+            
+            if (creationInfo == null) {
+                return getLocalizedMessage(language,
+                    "I need more information to create a holiday. Please specify:\n" +
+                    "- Holiday name\n" +
+                    "- Date (today, specific date, or format like 'August 4, 2025')\n" +
+                    "- Target audience (optional)\n" +
+                    "Example: 'Add a holiday called \"Company Day\" for today for government employees'",
+                    "Tatil oluşturmak için daha fazla bilgiye ihtiyacım var. Lütfen belirtin:\n" +
+                    "- Tatil adı\n" +
+                    "- Tarih (bugün, belirli bir tarih veya '4 Ağustos 2025' formatında)\n" +
+                    "- Hedef kitle (isteğe bağlı)\n" +
+                    "Örnek: 'Devlet çalışanları için bugün \"Şirket Günü\" adında bir tatil ekle'");
+            }
+            
+            // Create the holiday
+            HolidayDefinition newHoliday = createHolidayFromInfo(creationInfo, countryCode);
+            
+            return getLocalizedMessage(language,
+                String.format("✅ Successfully created holiday '%s' for %s in %s" + 
+                    (creationInfo.audience != null ? " (audience: %s)" : ""), 
+                    creationInfo.name, 
+                    creationInfo.date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    getCountryName(countryCode),
+                    creationInfo.audience != null ? creationInfo.audience : ""),
+                String.format("✅ '%s' tatili %s tarihinde %s için başarıyla oluşturuldu" +
+                    (creationInfo.audience != null ? " (hedef kitle: %s)" : ""),
+                    creationInfo.name,
+                    creationInfo.date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    getCountryName(countryCode),
+                    creationInfo.audience != null ? creationInfo.audience : ""));
+            
+        } catch (Exception e) {
+            // Add logging to help debug
+            System.err.println("Holiday creation error: " + e.getMessage());
+            e.printStackTrace();
+            return getLocalizedMessage(language,
+                "Sorry, I couldn't create the holiday. Please check your request and try again.",
+                "Üzgünüm, tatili oluşturamadım. Lütfen isteğinizi kontrol edin ve tekrar deneyin.");
+        }
+    }
+
     private String handleGeneralQuery(String userMessage, String countryCode, String language) {
         // Create context about the holiday system
         String context = createHolidayContext(countryCode, language);
@@ -268,7 +325,9 @@ public class HolidayAiService {
 
             11. 📆 **Holiday Duration Analysis**: If a holiday spans multiple days or extends into a weekend, highlight its total duration (e.g., "Ramazan Bayramı lasts for 3 days").
 
-            12. 🌍 **Language-Aware Responses**: Always respond in %s. Adjust your tone and phrasing accordingly.
+            12. ✨ **Holiday Creation**: If the user asks to "add a holiday", "create a holiday", or "add a holiday for [audience]", the system can create new holidays for specific audiences or all people.
+
+            13. 🌍 **Language-Aware Responses**: Always respond in %s. Adjust your tone and phrasing accordingly.
 
             Current context:
             %s
@@ -376,10 +435,15 @@ public class HolidayAiService {
     // New methods for extended functionality
 
     private boolean containsHolidayNameQuery(String message) {
+        // Exclude holiday creation requests first
+        if (containsHolidayCreationKeywords(message)) {
+            return false;
+        }
+        
         return message.contains("when is") || message.contains("tell me about") || 
                message.contains("what is") || message.contains("about") ||
                message.contains("how long") || message.contains("duration") ||
-               message.contains("last");
+               (message.contains("last") && !message.contains("called"));
     }
 
     private boolean containsSpecificYear(String message) {
@@ -408,6 +472,17 @@ public class HolidayAiService {
                 message.contains("bridge") || message.contains("extend") || message.contains("tatil") ||
                 message.contains("izin") || message.contains("en uzun") || message.contains("bağla") ||
                 message.contains("weekend") || message.contains("hafta sonu"));
+    }
+
+    private boolean containsHolidayCreationKeywords(String message) {
+        return (message.contains("add") && message.contains("holiday")) ||
+               (message.contains("create") && message.contains("holiday")) ||
+               (message.contains("new") && message.contains("holiday")) ||
+               message.contains("add a holiday") ||
+               message.contains("create a holiday") ||
+               message.contains("yeni tatil") ||
+               message.contains("tatil ekle") ||
+               message.contains("tatil oluştur");
     }
 
     private String handleHolidayNameQuery(String userMessage, String countryCode, String language) {
@@ -1374,5 +1449,144 @@ public class HolidayAiService {
         return getLocalizedMessage(language,
             "I'm sorry, I encountered an error while processing your request. Please try again or rephrase your question.",
             "Üzgünüm, isteğinizi işlerken bir hata oluştu. Lütfen tekrar deneyin veya sorunuzu yeniden ifade edin.");
+    }
+
+    private HolidayCreationInfo extractHolidayCreationInfo(String message, String language) {
+        // Extract holiday name (look for quoted text or patterns like "called X" or "named X")
+        String holidayName = extractHolidayNameFromCreationMessage(message);
+        if (holidayName == null) {
+            return null;
+        }
+        
+        // Extract date
+        LocalDate holidayDate = extractDateFromCreationMessage(message);
+        if (holidayDate == null) {
+            return null;
+        }
+        
+        // Extract audience (optional)
+        String audience = extractAudienceFromMessage(message, language);
+        
+        return new HolidayCreationInfo(holidayName, holidayDate, audience);
+    }
+
+    private String extractHolidayNameFromCreationMessage(String message) {
+        // Look for quoted text first
+        Pattern quotedPattern = Pattern.compile("[\"\']([^\"\']+)[\"\']");
+        Matcher quotedMatcher = quotedPattern.matcher(message);
+        if (quotedMatcher.find()) {
+            return quotedMatcher.group(1);
+        }
+        
+        // Look for patterns like "called X" or "named X"
+        Pattern calledPattern = Pattern.compile("(?:called|named)\\s+([A-Za-z0-9\\s]+?)(?:\\s+for|\\s+on|\\s+in|$)", Pattern.CASE_INSENSITIVE);
+        Matcher calledMatcher = calledPattern.matcher(message);
+        if (calledMatcher.find()) {
+            return calledMatcher.group(1).trim();
+        }
+        
+        return null;
+    }
+
+    private LocalDate extractDateFromCreationMessage(String message) {
+        String lowerMessage = message.toLowerCase();
+        
+        // Check for "today"
+        if (lowerMessage.contains("today") || lowerMessage.contains("bugün")) {
+            return LocalDate.now();
+        }
+        
+        // Check for "tomorrow"
+        if (lowerMessage.contains("tomorrow") || lowerMessage.contains("yarın")) {
+            return LocalDate.now().plusDays(1);
+        }
+        
+        // Try to extract dates using existing method
+        List<LocalDate> dates = extractDatesFromMessage(message);
+        if (!dates.isEmpty()) {
+            return dates.get(0);
+        }
+        
+        return null;
+    }
+
+    private HolidayDefinition createHolidayFromInfo(HolidayCreationInfo info, String countryCode) {
+        System.out.println("DEBUG: Creating holiday from info - Name: " + info.name + ", Date: " + info.date + ", Audience: " + info.audience);
+        
+        // Create the template code
+        String templateCode = info.name.toLowerCase().replaceAll("[^a-z0-9]", "_");
+        System.out.println("DEBUG: Generated template code: " + templateCode);
+        
+        // Check if template already exists
+        HolidayTemplate template = holidayTemplateService.findByCode(templateCode);
+        
+        if (template == null) {
+            System.out.println("DEBUG: Creating new template");
+            // Create a new HolidayTemplate and save it
+            template = new HolidayTemplate();
+            template.setDefaultName(info.name);
+            template.setCode(templateCode);
+            template.setType("CUSTOM");
+            template = holidayTemplateService.createTemplate(template);
+            System.out.println("DEBUG: Template created with ID: " + template.getId());
+        } else {
+            System.out.println("DEBUG: Using existing template with ID: " + template.getId());
+        }
+        
+        // Create HolidayDefinition with the saved template
+        HolidayDefinition holidayDefinition = new HolidayDefinition();
+        holidayDefinition.setTemplate(template);
+        holidayDefinition.setHolidayDate(info.date);
+        
+        // Save the holiday definition first
+        System.out.println("DEBUG: Saving holiday definition");
+        holidayDefinition = holidayService.createHoliday(holidayDefinition);
+        System.out.println("DEBUG: Holiday definition saved with ID: " + holidayDefinition.getId());
+        
+        // Handle audience association if specified
+        if (info.audience != null) {
+            // Find the audience in the database with flexible matching
+            Audience audience = audienceService.getAllAudiences().stream()
+                .filter(a -> 
+                    a.getCode().equalsIgnoreCase(info.audience) || 
+                    a.getAudienceName().equalsIgnoreCase(info.audience) ||
+                    // Handle common variations
+                    (info.audience.equalsIgnoreCase("general public") && a.getCode().equalsIgnoreCase("general")) ||
+                    (info.audience.equalsIgnoreCase("government employees") && a.getCode().equalsIgnoreCase("government"))
+                )
+                .findFirst()
+                .orElse(null);
+            
+            if (audience != null) {
+                // Create the holiday-audience association
+                HolidayAudience holidayAudience = new HolidayAudience();
+                holidayAudience.setDefinition(holidayDefinition);
+                holidayAudience.setAudience(audience);
+                holidayAudienceRepository.save(holidayAudience);
+                
+                System.out.println("DEBUG: Successfully created holiday-audience association for audience: " + audience.getCode());
+            } else {
+                System.out.println("DEBUG: Could not find matching audience for: " + info.audience);
+                // List available audiences for debugging
+                audienceService.getAllAudiences().forEach(a -> 
+                    System.out.println("  Available audience: " + a.getCode() + " (" + a.getAudienceName() + ")")
+                );
+            }
+        }
+        
+        return holidayDefinition;
+    }
+
+    // Helper class for holiday creation info
+    private static class HolidayCreationInfo {
+        public final String name;
+        public final LocalDate date;
+        public final String audience;
+
+        public HolidayCreationInfo(String name, LocalDate date, String audience) {
+            this.name = name;
+            this.date = date;
+            this.audience = audience;
+        }
     }
 }

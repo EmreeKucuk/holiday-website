@@ -117,6 +117,7 @@ const ApiExplorer: React.FC = () => {
             { name: 'start', type: 'date', required: true, description: 'Start date', defaultValue: '2025-01-01' },
             { name: 'end', type: 'date', required: true, description: 'End date', defaultValue: '2025-01-31' },
             { name: 'country', type: 'string', required: false, description: 'Country code', defaultValue: 'TR' },
+            { name: 'audience', type: 'string', required: false, description: 'Target audience', defaultValue: '' },
             { name: 'includeEndDate', type: 'boolean', required: false, description: 'Include end date', defaultValue: 'true' }
           ],
           testable: true,
